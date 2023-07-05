@@ -155,27 +155,24 @@ save(sf_lgr_df,
      sf_comp_cth,
      file = here("data/derived_data/sf_cleartwater_passage_data.rda"))
 
+# get stream gauge data using dataRetrieval package
+library(remotes)
+# install_github("DOI-USGS/dataRetrieval",
+#                build_vignettes = TRUE, 
+#                build_opts = c("--no-resave-data",
+#                               "--no-manual"))
+library(dataRetrieval)
+ 
+sf_elk_gage_info = readNWISsite(13337500) # sf clearwater river nr Elk City, ID
+sf_elk_gage_daily_cfs = readNWISdv(siteNumbers = 13337500,        
+                                   parameterCd = "00060",         # mean daily cfs
+                                   startDate = "2021-07-01", 
+                                   endDate = "2023-06-30") %>%
+  rename(daily_mean_cfs = X_00060_00003)
+  
+# write out stream gage data for analysis
+save(sf_elk_gage_info,
+     sf_elk_gage_daily_cfs,
+     file = here("data/derived_data/usgs_13337500_mean_daily_cfs.rda"))
+
 ### END SCRIPT
-
-# summarise
-# tmp = sfclw_obs %>%
-#   group_by(rel_site, node) %>%
-#   summarise(n_tags = n_distinct(tag_code))
-# 
-# newsome = sfclw_obs %>%
-#   filter(rel_site == "NEWSOC")
-# 
-# n_distinct(newsome$tag_code)
-# # only 1 fish impeded by barrier (~5000 detections), only 2 other fish reached SC3 and were only
-# # observed 1 time, 4 others had last obs at Sc1
-# # 15,900 tags, 2600 IDFG, 13300 from NPT - started in 2022 and 2023
-# 8/15000
-# 
-# meadow = sfclw_obs =
-#   filter(rel_site == "MEAD2C")
-# 
-# sfclw_tags %>%
-#   mutate(rel_year = year(rel_date)) %>%
-#   group_by(rel_site, rel_year) %>%
-#   summarise(n_tags = n_distinct(tag_id))
-
