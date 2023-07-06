@@ -147,6 +147,12 @@ sf_ch = sf_comp_cth %>%
   # unite(ch, 2:(length(pc_nodes_order) + 1), sep = "")
   left_join(sf_comp_cth %>%
               group_by(tag_code, spawn_year, node) %>%
+              summarise(last_det = min(min_det)) %>%
+              pivot_wider(names_from = node,
+                          values_from = last_det,
+                          names_glue = "{node}_first_det")) %>%
+  left_join(sf_comp_cth %>%
+              group_by(tag_code, spawn_year, node) %>%
               summarise(last_det = max(max_det)) %>%
               pivot_wider(names_from = node,
                           values_from = last_det,
@@ -209,7 +215,8 @@ sf_elk_gage_daily_cfs = readNWISdv(siteNumbers = 13337500,
                                    startDate = "2021-07-01", 
                                    endDate = "2023-06-30") %>%
   rename(daily_mean_cfs = X_00060_00003)
-  
+# Unfortunately, data is only available for the site through 10/17/2021
+ 
 # write out stream gage data for analysis
 save(sf_elk_gage_info,
      sf_elk_gage_daily_cfs,
