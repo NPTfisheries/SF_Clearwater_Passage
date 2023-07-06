@@ -1,0 +1,93 @@
+---
+title: "Assessment of a Potential Velocity Barrier for Adult Steelhead Migration on the South Fork Clearwater River - PRELIMINARY"
+author:
+- Michael W. Ackerman:
+    email: mikea@nezperce.org
+    institute: npt_mccall
+    correspondence: yes
+- Ryan N. Kinzer:
+    email: ryank@nezperce.org
+    institute: npt_mccall
+    correspondence: no
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::html_document2:
+    theme: yeti
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    number_sections: yes
+    pandoc_args:
+    - "--lua-filter=../templates/scholarly-metadata.lua"
+    - "--lua-filter=../templates/author-info-blocks.lua"
+    - "--lua-filter=../templates/pagebreak.lua"
+institute:
+- npt_mccall: Nez Perce Tribe, Department of Fisheries Resources Management, 14054 Burr Dr., McCall, Idaho, 83638, USA
+csl: "../templates/journal-of-archaeological-science.csl"
+bibliography: AckermanLibrary.bib
+always_allow_html: yes
+---
+
+<!-- the following inserts MHE logo into header -->
+
+```{=html}
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"DFRM.png\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
+
+<style>
+p.caption {
+  font-size: 0.8em;
+}
+</style>
+```
+
+```{r setup, echo = FALSE, message = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  echo = FALSE,
+  comment = "#>",
+  fig.path = "../figures/",
+  dpi = 600
+)
+
+options(knitr.kable.NA = '--')
+
+```
+
+```{r load-libraries}
+# run this if running chunks directly
+
+# for formatting
+# library(kableExtra)
+# library(ggpubr)
+
+# for analysis
+
+```
+
+
+# Background
+
+Text...
+
+## Objectives
+
+Objectives...
+
+
+
+# Literature Cited
+
+<!-- The following line ensures the references appear here for the MS Word or HTML output files, rather than right at the end of the document (this will not work for PDF files):  -->
+
+::: {#refs}
+:::
+
