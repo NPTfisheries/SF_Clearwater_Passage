@@ -201,7 +201,7 @@ save(sf_lgr_df,
 # gather stream gage data
 
 # load necessary libraries
-library(remotes)
+#library(remotes)
 # install_github("DOI-USGS/dataRetrieval",
 #                build_vignettes = TRUE, 
 #                build_opts = c("--no-resave-data",
@@ -209,17 +209,26 @@ library(remotes)
 library(dataRetrieval)
 
 # query stream gage data
-sf_elk_gage_info = readNWISsite(13337500)                       # sf clearwater river nr Elk City, ID
-sf_elk_gage_daily_cfs = readNWISdv(siteNumbers = 13337500,        
-                                   parameterCd = "00060",       # mean daily cfs
-                                   startDate = "2021-07-01", 
-                                   endDate = "2023-06-30") %>%
+sf_elk_gage_info = readNWISsite(13337500)                    # sf clearwater river nr Elk City, ID
+sf_elk_daily_cfs = readNWISdv(siteNumbers = 13337500,        
+                              parameterCd = "00060",    # mean daily cfs
+                              startDate = "2021-07-01", 
+                              endDate = "2023-06-30") %>%
   rename(daily_mean_cfs = X_00060_00003)
 # Unfortunately, data is only available for the site through 10/17/2021
+
+sf_stites_gage_info = readNWISsite(13338500)                 # sf clearwater river nr Stites, ID
+sf_stite_daily_cfs = readNWISdv(siteNumbers = 13338500,        
+                                parameterCd = "00060",    # mean daily cfs
+                                startDate = "2021-07-01", 
+                                endDate = "2023-06-30") %>%
+  rename(daily_mean_cfs = X_00060_00003)
  
 # write out stream gage data for analysis
 save(sf_elk_gage_info,
-     sf_elk_gage_daily_cfs,
-     file = here("data/derived_data/usgs_13337500_mean_daily_cfs.rda"))
+     sf_elk_daily_cfs,
+     sf_stites_gage_info,
+     sf_stite_daily_cfs,
+     file = here("data/derived_data/sf_clearwater_mean_daily_cfs.rda"))
 
 ### END SCRIPT
