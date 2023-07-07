@@ -305,7 +305,82 @@ pass_by_wl = sf_df %>%
 pass_by_wl
 
 #------------------
-# passage by Stites discharge
+# passage by Stites discharge (cfs)
+cfs_bins = seq(0, 10000, by = 250)
+tmp = paste0(cfs_bins, "-", lead(cfs_bins))
+cfs_bin_labels = tmp[1:(length(tmp) - 1)]
 
+pass_by_cfs = sf_df %>%
+  filter(!is.na(daily_mean_cfs)) %>%
+  select(tag_code,
+         pass_SC3,
+         pass_SC4,
+         daily_mean_cfs) %>%
+  mutate(cfs_bin = cut(daily_mean_cfs,
+                       breaks = cfs_bins,
+                       labels = cfs_bin_labels)) %>%
+  group_by(cfs_bin) %>%
+  summarize(n_tags = n(),
+            n_pass_SC3 = sum(pass_SC3),
+            pct_pass_SC3 = round((n_pass_SC3 / n_tags)*100, 1),
+            n_pass_SC4 = sum(pass_SC4),
+            pct_SC3_pass_SC4 = round((n_pass_SC4 / n_pass_SC3)*100, 1),
+            pct_pass_SC4 = round((n_pass_SC4 / n_tags)*100, 1))
+pass_by_cfs
+
+#------------------
+# simple logistic regression
+fl_rg_data = sf_df %>%
+  filter(!rel_site %in% c("CLEARC", "PRDLD1"),
+         !is.na(lgr_fl_mm)) %>%
+  mutate(rel_group = case_when(
+    rel_site == "BONAFF" ~ "Unknown Release",
+    rel_site == "CLWRSF" ~ "South Fork Clearwater River",
+    rel_site == "COLR2"  ~ "Unknown Release",
+    rel_site == "LGRLDR" ~ "Unknown Release",
+    rel_site == "LGRRBR" ~ "Unknown Release",
+    rel_site == "LGRRRR" ~ "Unknown Release",
+    rel_site == "MEAD2C" ~ "Meadow Creek",
+    rel_site == "NEWSOC" ~ "Newsome Creek",
+    TRUE ~ rel_site)) %>%
+  mutate(pass_SC4 = if_else(pass_SC4 == T, 1, 0)) %>%
+  select(tag_code,
+         lgr_fl_mm,
+         pass_SC4,
+         rel_group)
+
+# fit the logistic regression model
+model = glm(pass_SC4 ~ lgr_fl_mm + rel_group, data = fl_rg_data, family = binomial())
+
+# create a sequence of x values for prediction
+x_pred = seq(min(fl_rg_data$lgr_fl_mm), max(fl_rg_data$lgr_fl_mm), length.out = 1000)
+
+# create a data frame for prediction including groups
+pred_data = expand.grid(x = x_pred, group = unique(fl_rg_data$rel_group)) %>%
+  rename(lgr_fl_mm = x,
+         rel_group = group)
+
+# predict the probabilities using the logistic regression model
+pred_probs = predict(model, newdata = pred_data, type = "response")
+
+# combine the predicted data with the original data
+plot_data = cbind(pred_data, pred_prob = pred_probs)
+
+# Plot the logistic regression curve and data points
+lr_p = ggplot() +
+  geom_point(aes(x = lgr_fl_mm,
+                 y = pass_SC4,
+                 color = rel_group),
+             data = fl_rg_data) +
+  geom_line(aes(x = lgr_fl_mm,
+                y = pred_prob,
+                color = rel_group),
+            data = plot_data,
+            linewidth = 0.5) +
+  labs(x = "FL (mm)",
+       y = "p(Successful Pass)",
+       color = "Release Group") +
+  theme_minimal()
+lr_p
 
 # END SCRIPT
