@@ -218,7 +218,7 @@ sf_elk_daily_cfs = readNWISdv(siteNumbers = 13337500,
 # Unfortunately, data is only available for the site through 10/17/2021
 
 sf_stites_gage_info = readNWISsite(13338500)                 # sf clearwater river nr Stites, ID
-sf_stite_daily_cfs = readNWISdv(siteNumbers = 13338500,        
+sf_stites_daily_cfs = readNWISdv(siteNumbers = 13338500,        
                                 parameterCd = "00060",    # mean daily cfs
                                 startDate = "2021-07-01", 
                                 endDate = "2023-06-30") %>%
