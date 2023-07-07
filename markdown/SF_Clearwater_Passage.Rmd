@@ -74,15 +74,34 @@ options(knitr.kable.NA = '--')
 ```
 
 
+
 # Background
 
-Text...
+Some background text here...
 
-## Objectives
+## Study area
 
-Objectives...
+Consider a study area map with locations of arrays (SC1, SC2, SC3, SC4, CRA), location of potential velocity barrier (milepost 28, rm 44, rkm 71), and streams with juvenile steelhead release groups (mainstem, Clear Creek, Meadown Creek, Newsome Creek).
+
+```{r load-data}
+
+```
+
+# Assessment
+
+## Spawn Year and Release Group
 
 
+
+## Fish Length
+
+## Ocean Age
+
+## Water Level
+
+# Discussion
+
+First Newsome Creek juvenile releases occurred in spring 2022; 1-ocean adults will return to SF Clearwater in spring 2024 and 2-ocean adults in spring 2025.
 
 # Literature Cited
 
