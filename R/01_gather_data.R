@@ -228,7 +228,7 @@ sf_stite_daily_cfs = readNWISdv(siteNumbers = 13338500,
 save(sf_elk_gage_info,
      sf_elk_daily_cfs,
      sf_stites_gage_info,
-     sf_stite_daily_cfs,
+     sf_stites_daily_cfs,
      file = here("data/derived_data/sf_clearwater_mean_daily_cfs.rda"))
 
 ### END SCRIPT
