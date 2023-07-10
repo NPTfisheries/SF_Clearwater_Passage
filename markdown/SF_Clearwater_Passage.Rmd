@@ -77,7 +77,9 @@ options(knitr.kable.NA = '--')
 
 # Background
 
-Some background text here...
+A section of the South Fork Clearwater River near milepost (MP) 28 has been considered a potential barrier to adult steelhead migration due to high velocities, at least during particular flows. The high velocities are hypothesized to hinder or prevent some adult steelhead from migrating upstream of the barrier, limiting their use of available spawning habitat upstream of the high-velocity section in the mainstem South Fork Clearwater River and tributaries. Namely, previous work has indicated that stream velocities within the section likely impede upstream passage for adult steelhead at flows greater than approximately 1,000 cfs (~600 cfs at the previous Elk City gage) [@Timm2017; @Timm2018].
+
+
 
 ## Study area
 
