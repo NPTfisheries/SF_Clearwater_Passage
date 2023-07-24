@@ -156,7 +156,7 @@ sf_ch = sf_comp_cth %>%
               summarise(last_det = max(max_det)) %>%
               pivot_wider(names_from = node,
                           values_from = last_det,
-                          names_glue = "{node}_last_det"))
+                          names_glue = "{node}_last_det"))c
 
 # Get some biological data from LGR
 trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2023-06-27.csv")

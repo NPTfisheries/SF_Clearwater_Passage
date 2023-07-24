@@ -99,6 +99,7 @@ sc1_sc2_p = sf_df %>%
   group_by(spawn_year) %>%
   summarize(n_tags = n(),
             p = sum(SC1_SC2) / n())
+sc1_sc2_p
 
 sc3_p = sf_df %>%
   select(spawn_year, 
@@ -108,6 +109,7 @@ sc3_p = sf_df %>%
   group_by(spawn_year) %>%
   summarize(n_tags = n(),
             p = sum(SC3) / n())
+sc3_p
 
 # -----------------------
 # passage by spawn year
@@ -163,6 +165,7 @@ pass_by_rg = sf_df %>%
                         pct_SC3_pass_SC4 = round((n_pass_SC4 / n_pass_SC3)*100, 1),
                         pct_pass_SC4 = round((n_pass_SC4 / n_tags)*100, 1))) %>%
   mutate(spawn_year = replace(spawn_year, spawn_year == -9999, "Totals"))
+pass_by_rg
 
 # bar plot
 pass_by_rg_p = pass_by_rg %>%
