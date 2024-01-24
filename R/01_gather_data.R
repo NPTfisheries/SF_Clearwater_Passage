@@ -18,19 +18,19 @@ library(magrittr)
 # gather PIT-tag data
 
 # get side configuration info from PTAGIS
-# config = buildConfig()
+# config = buildConfig(node_assign = "site")
 # save(config, file = here("data/derived_data/config.rda"))
 load(here("data/derived_data/config.rda"))
 
 # GRA & south fork clearwater sites
-sf_nodes = c("SC1",  # rkm 1; These rkms are from PTAGIS and I don't know their accuracy
+sf_sites = c("SC1",  # rkm 1; These rkms are from PTAGIS and I don't know their accuracy
              "SC2",  # rkm 2   
              "SC3",  # rkm 60
              "SC4",  # rkm 81
              "CRA")  # Crooked River IPTDS
 
 sf_config = config %>%
-  filter(node %in% c("GRA", sf_nodes))
+  filter(node %in% c("GRA", sf_sites))
 
 # get all observations from DART for adults at GRA and upstream (includes newly and previously tagged fish)
 # chinook, sy2022
@@ -40,7 +40,7 @@ chnk_2022_dart = queryObsDART(species = "Chinook",
   mutate(species = "Chinook",
          spawn_year = 2022) %>%
   group_by(tag_id) %>%
-  filter(any(obs_site %in% sf_nodes))
+  filter(any(obs_site %in% sf_sites))
 
 # chinook, sy2023
 chnk_2023_dart = queryObsDART(species = "Chinook",
@@ -49,7 +49,7 @@ chnk_2023_dart = queryObsDART(species = "Chinook",
   mutate(species = "Chinook",
          spawn_year = 2023) %>%
   group_by(tag_id) %>%
-  filter(any(obs_site %in% sf_nodes))
+  filter(any(obs_site %in% sf_sites))
 
 # steelhead, sy2022
 sthd_2022_dart = queryObsDART(species = "Steelhead",
@@ -58,7 +58,7 @@ sthd_2022_dart = queryObsDART(species = "Steelhead",
   mutate(species = "Steelhead",
          spawn_year = 2022) %>%
   group_by(tag_id) %>%
-  filter(any(obs_site %in% sf_nodes))
+  filter(any(obs_site %in% sf_sites))
 
 # steelhead, sy2023
 sthd_2023_dart = queryObsDART(species = "Steelhead",
@@ -67,7 +67,7 @@ sthd_2023_dart = queryObsDART(species = "Steelhead",
   mutate(species = "Steelhead",
          spawn_year = 2023) %>%
   group_by(tag_id) %>%
-  filter(any(obs_site %in% sf_nodes))
+  filter(any(obs_site %in% sf_sites))
 
 # combine SY2022 and SY2023, both species, and only those fish observed at a sf_node
 sf_dart_obs = rbind(sthd_2022_dart, 
@@ -163,13 +163,16 @@ parent_child = tribble(~"parent", ~"child",
                        "SC4", "CRA")
 
 # add nodes i.e., arrays
-pc_nodes = addParentChildNodes(parent_child, 
-                               config)
-pc_node_order = buildNodeOrder(parent_child = pc_nodes)
+# pc_nodes = addParentChildNodes(parent_child, 
+#                                config)
+# pc_node_order = buildNodeOrder(parent_child = pc_nodes)
+
+# build site order
+sf_site_order = buildNodeOrder(parent_child = parent_child)
 
 # add directionality and indicate whether each detection should be kept
 sy2022_chnk_filter = filterDetections(compress_obs = sy2022_chnk_comp,
-                                      parent_child = pc_nodes,
+                                      parent_child = parent_child,
                                       max_obs_date = "20220915") %>%
   filter(auto_keep_obs == T) %>%
   select(species,
@@ -180,7 +183,7 @@ sy2022_chnk_filter = filterDetections(compress_obs = sy2022_chnk_comp,
          -user_keep_obs)
 
 sy2023_chnk_filter = filterDetections(compress_obs = sy2023_chnk_comp,
-                                      parent_child = pc_nodes,
+                                      parent_child = parent_child,
                                       max_obs_date = "20230915") %>%
   filter(auto_keep_obs == T) %>%
   select(species,
@@ -191,7 +194,7 @@ sy2023_chnk_filter = filterDetections(compress_obs = sy2023_chnk_comp,
          -user_keep_obs)
 
 sy2022_sthd_filter = filterDetections(compress_obs = sy2022_sthd_comp,
-                                      parent_child = pc_nodes,
+                                      parent_child = parent_child,
                                       max_obs_date = "20220531") %>%
   filter(auto_keep_obs == T) %>%
   select(species,
@@ -202,7 +205,7 @@ sy2022_sthd_filter = filterDetections(compress_obs = sy2022_sthd_comp,
          -user_keep_obs)
 
 sy2023_sthd_filter = filterDetections(compress_obs = sy2023_sthd_comp,
-                                      parent_child = pc_nodes,
+                                      parent_child = parent_child,
                                       max_obs_date = "20230531") %>%
   filter(auto_keep_obs == T) %>%
   select(species,
@@ -222,33 +225,33 @@ comp_filter = bind_rows(sy2022_chnk_filter,
 write_csv(comp_filter,
           file = "data/derived_data/sf_clearwater_filtered_detections.csv")
 
-# estimate node efficiencies
-sy2022_chnk_node_eff = estNodeEff(capHist_proc = sy2022_chnk_filter,
-                                  node_order = pc_node_order) %>%
+# estimate site efficiencies
+sy2022_chnk_site_eff = estNodeEff(capHist_proc = sy2022_chnk_filter,
+                                  node_order = sf_site_order) %>%
   mutate(species = "Chinook",
          spawn_year = 2022) %>%
   select(species,
          spawn_year,
          everything())
 
-sy2023_chnk_node_eff = estNodeEff(capHist_proc = sy2023_chnk_filter,
-                                  node_order = pc_node_order) %>%
+sy2023_chnk_site_eff = estNodeEff(capHist_proc = sy2023_chnk_filter,
+                                  node_order = sf_site_order) %>%
   mutate(species = "Chinook",
          spawn_year = 2023) %>%
   select(species,
          spawn_year,
          everything())
 
-sy2022_sthd_node_eff = estNodeEff(capHist_proc = sy2022_sthd_filter,
-                                  node_order = pc_node_order) %>%
+sy2022_sthd_site_eff = estNodeEff(capHist_proc = sy2022_sthd_filter,
+                                  node_order = sf_site_order) %>%
   mutate(species = "Steelhead",
          spawn_year = 2022) %>%
   select(species,
          spawn_year,
          everything())
 
-sy2023_sthd_node_eff = estNodeEff(capHist_proc = sy2023_sthd_filter,
-                                  node_order = pc_node_order) %>%
+sy2023_sthd_site_eff = estNodeEff(capHist_proc = sy2023_sthd_filter,
+                                  node_order = sf_site_order) %>%
   mutate(species = "Steelhead",
          spawn_year = 2023) %>%
   select(species,
@@ -256,14 +259,14 @@ sy2023_sthd_node_eff = estNodeEff(capHist_proc = sy2023_sthd_filter,
          everything())
 
 # bind node efficiencies
-node_eff = rbind(sy2022_sthd_node_eff,
-                 sy2023_sthd_node_eff,
-                 sy2022_chnk_node_eff,
-                 sy2023_chnk_node_eff)
+site_eff = rbind(sy2022_sthd_site_eff,
+                 sy2023_sthd_site_eff,
+                 sy2022_chnk_site_eff,
+                 sy2023_chnk_site_eff)
 
 # write node efficiencies
-write_csv(node_eff,
-          file = paste0(here(), "/data/derived_data/sf_clearwater_node_efficiencies.csv"))
+write_csv(site_eff,
+          file = paste0(here(), "/data/derived_data/sf_clearwater_site_efficiencies.csv"))
 
 # convert filtered cths into capture histories
 sy2022_chnk_ch = buildCapHist(filter_ch = sy2022_chnk_filter,
@@ -334,7 +337,7 @@ sf_lgr_df = comp_filter %>%
 # write out objects for analysis
 save(sf_lgr_df,
      comp_filter,
-     node_eff,
+     site_eff,
      sy2022_chnk_ch,
      sy2023_chnk_ch,
      sy2022_sthd_ch,
