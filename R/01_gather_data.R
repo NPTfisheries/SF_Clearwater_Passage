@@ -125,7 +125,8 @@ sy2022_chnk_comp = compress(cth_file = sy2022_chnk_cth,
                             units = "days",
                             ignore_event_vs_release = TRUE) %>%
   mutate(species = "Chinook",
-         spawn_year = 2022)
+         spawn_year = 2022) %>%
+  filter(min_det > ymd_hms("2022-03-01 01:00:00"))
 
 sy2023_chnk_comp = compress(cth_file = sy2023_chnk_cth,
                             file_type = "PTAGIS",   
@@ -134,7 +135,8 @@ sy2023_chnk_comp = compress(cth_file = sy2023_chnk_cth,
                             units = "days",
                             ignore_event_vs_release = TRUE) %>%
   mutate(species = "Chinook",
-         spawn_year = 2023)
+         spawn_year = 2023) %>%
+  filter(min_det > ymd_hms("2023-03-01 01:00:00"))
 
 sy2022_sthd_comp = compress(cth_file = sy2022_sthd_cth,
                             file_type = "PTAGIS",   
@@ -143,7 +145,8 @@ sy2022_sthd_comp = compress(cth_file = sy2022_sthd_cth,
                             units = "days",
                             ignore_event_vs_release = TRUE) %>%
   mutate(species = "Steelhead",
-         spawn_year = 2022)
+         spawn_year = 2022) %>%
+  filter(min_det > ymd_hms("2021-07-01 01:00:00"))
 
 sy2023_sthd_comp = compress(cth_file = sy2023_sthd_cth,
                             file_type = "PTAGIS",   
@@ -152,7 +155,8 @@ sy2023_sthd_comp = compress(cth_file = sy2023_sthd_cth,
                             units = "days",
                             ignore_event_vs_release = TRUE) %>%
   mutate(species = "Steelhead",
-         spawn_year = 2023)
+         spawn_year = 2023) %>%
+  filter(min_det > ymd_hms("2022-07-01 01:00:00"))
 
 # build SF Clearwater parent-child table
 parent_child = tribble(~"parent", ~"child",
