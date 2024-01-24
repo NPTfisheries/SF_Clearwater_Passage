@@ -340,6 +340,7 @@ sf_lgr_df = comp_filter %>%
 
 # write out objects for analysis
 save(sf_lgr_df,
+     sf_dart_obs,
      comp_filter,
      site_eff,
      sy2022_chnk_ch,
