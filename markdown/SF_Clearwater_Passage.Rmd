@@ -92,6 +92,76 @@ load(here("data/derived_data/sf_clearwater_passage_data.rda"))
 
 ```
 
+```{r data-prep}
+# detection by tag in wide format
+comp_filter_wide = comp_filter %>%
+  # reset slots to start at 1
+  # group_by(tag_code) %>%
+  # mutate(slot = 1:n()) %>%
+  # ungroup() %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         node,
+         min_det,
+         travel_time) %>%
+  # for instances where a tag has two detections at a single site, get first detection
+  group_by(species, spawn_year, tag_code, node) %>%
+  slice(which.min(min_det)) %>%
+  # need to convert datetime columns to character before pivot_wider
+  mutate(min_det = as.character(min_det),
+         travel_time = as.character(travel_time)) %>%
+  # pivot wider
+  group_by(species, spawn_year, tag_code) %>%
+  pivot_wider(names_from = node,
+              values_from = c(min_det, travel_time)) %>%
+  ungroup()
+
+# prepare data frame for analysis  
+sf_df = rbind(sy2022_chnk_ch,
+              sy2023_chnk_ch,
+              sy2022_sthd_ch,
+              sy2023_sthd_ch) %>%
+  select(species, spawn_year, tag_code, cap_hist) %>%
+  left_join(comp_filter_wide) %>%
+  # attach some useful information from LGRTrappindDB
+  left_join(sf_lgr_df %>%
+              select(-spawn_year)) %>%
+  # attach some useful mark and release information from DART
+  left_join(sf_dart_obs %>%
+              select(tag_id,
+                     mark_site,
+                     mark_date,
+                     rel_site,
+                     rel_date) %>%
+              distinct(),
+            by = c("tag_code" = "tag_id")) %>%
+  # join water level data from the SC4 probe, using date when fish was last detected at SC1, SC2, or SC3
+  mutate(tmp = date(pmax(min_det_SC1, min_det_SC2, min_det_SC3, na.rm = T))) %>%
+  left_join(sc4_env %>%
+              filter(metric == "water_level") %>%
+              select(date,
+                     sc4_water_level_m = mean),
+            by = c("tmp" = "date")) %>%
+  # join water level data from stites usgs gage 13338500
+  left_join(sf_stites_daily_cfs %>%
+              select(Date,
+                     daily_mean_cfs),
+            by = c("tmp" = "Date")) %>%
+  select(-tmp) %>%
+  # did fish migrate past the potential velocity barrier?
+  mutate(pass_sc3 = !is.na(min_det_SC3),
+         success = !is.na(min_det_SC4) | !is.na(min_det_CRA)) %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         cap_hist,
+         pass_sc3,
+         success,
+         everything())
+
+```
+
 ## Study area
 
 The section of the river considered to be a potential velocity barrier is located on river kilometer (rkm) 71 of the South Fork Clearwater River (Figure \@ref(fig:study-map)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) additionally show each of the instream PIT tag detection sites (IPTDS) used in the evaluation to detect adult steelhead and Chinook salmon.
