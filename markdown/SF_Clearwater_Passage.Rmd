@@ -89,6 +89,16 @@ This document provides a preliminary assessment of adult steelhead passage at th
 ```{r load-data}
 load(here("data/derived_data/config.rda"))
 load(here("data/derived_data/sf_clearwater_passage_data.rda"))
+load(here("data/derived_data/sf_clearwater_mean_daily_cfs.rda")) ; rm(sf_elk_daily_cfs, sf_elk_gage_info, sf_stites_gage_info)
+
+# environmental data from the SC4 probe
+sc4_env = read_csv(here("data/raw_data/SC4_enviro_5f1ff362-1201-4136-a630-0ba05c141177.csv")) %>%
+  rename(node = slug...1,
+         metric = slug...2) %>%
+  mutate(date = date(read_at)) %>%
+  group_by(node, metric, date) %>%
+  summarise(mean = round(mean(value), 2)) %>%
+  ungroup()
 
 ```
 
