@@ -30,8 +30,7 @@ bibliography: AckermanLibrary.bib
 always_allow_html: yes
 ---
 
-<!-- the following inserts MHE logo into header -->
-
+<!-- the following inserts the NPT logo into header -->
 ```{=html}
 <script>
    $(document).ready(function() {
@@ -70,23 +69,181 @@ options(knitr.kable.NA = '--')
 # library(ggpubr)
 
 # for analysis
+library(tidyverse)
+library(PITcleanr)
+library(here)
+library(sf)
+library(ggplot2)
+library(kableExtra)
 
 ```
-
 
 
 # Background
 
-A section of the South Fork Clearwater River near milepost (MP) 28 has been considered a potential barrier to adult steelhead migration due to high velocities, at least during particular flows. The high velocities are hypothesized to hinder or prevent some adult steelhead from migrating upstream of the barrier, limiting their use of available spawning habitat upstream of the high-velocity section in the mainstem South Fork Clearwater River and tributaries. Namely, previous work has indicated that stream velocities within the section likely impede upstream passage for adult steelhead at flows greater than approximately 1,000 cfs (~600 cfs at the previous Elk City gage) [@Timm2017; @Timm2018].
+A section of the South Fork Clearwater River near milepost (MP) 28 has been considered a potential barrier to adult steelhead migration due to high velocities, at least during particular flows. These high water velocities are hypothesized to hinder, or even prevent, some adult steelhead from migrating upstream of the barrier, limiting their use of available spawning habitat upstream of the high-velocity section in the mainsteam South Fork Clearwater River and tributaries. Namely, previous work has indicated that stream velocities within the section likely impede upstream passage for adult steelhead at flows greater than approximately 1,000 cfs (~600 cfs at the previous Elk City gage) [@Timm2017; @Timm2018].
 
-## Study area
-
-Consider a study area map with locations of arrays (SC1, SC2, SC3, SC4, CRA), location of potential velocity barrier (milepost 28, rm 44, rkm 71), and streams with juvenile steelhead release groups (mainstem, Clear Creek, Meadown Creek, Newsome Creek).
+This document provides a preliminary assessment of adult steelhead passage at the putative velocity barrier (hereafter barrier) based on detections of PIT-tagged adults in the South Fork Clearwater River, including at sites SC3 and SC4 located downstream and upstream of the barrier, respectively. In particular, we're interested in whether PIT-tag observations suggest that adults passing SC3 "convert" to locatons upstream of the barrier (e.g., SC4) at rates lower than expected, suggesting that the barrier hinders or prevents passage at least for some adults. Although the evaluation is focused on steelhead, we include data from PIT-tagged adult Chinook salmon for comparison.
+<!--Continue, if necessary-->
 
 ```{r load-data}
+load(here("data/derived_data/config.rda"))
+load(here("data/derived_data/sf_clearwater_passage_data.rda"))
 
 ```
 
+## Study area
+
+The section of the river considered to be a potential velocity barrier is located on river kilometer (rkm) 71 of the South Fork Clearwater River (Figure \@ref(fig:study-map)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) additionally show each of the instream PIT tag detection sites (IPTDS) used in the evaluation to detect adult steelhead and Chinook salmon.
+
+```{r study-map, message = F, fig.cap = "Map of the study area including the locations of each instream PIT tag detection system and the approximate location of the potential velocity barrier shown in red."}
+# sites of interest
+sf_sites = c("SC1",  # rkm 1
+             "SC2",  # rkm 2   
+             "SC3",  # rkm 60
+             "SC4",  # rkm 81
+             "CRA")  # rkm 94 (from SF Clearwater mouth)
+
+# sf of sites of interest
+sf_sites_sf = config %>%
+  filter(site_code %in% sf_sites) %>%
+  select(site_code, rkm, rkm_total, latitude, longitude) %>%
+  distinct() %>%
+  st_as_sf(coords = c("longitude", 
+                      "latitude"), 
+           crs = 4326)
+
+# download subset of NHDPlus flowlines
+# nhd_list = queryFlowlines(sites_sf = sf_sites_sf,
+#                           root_site_code = "SC1",
+#                           min_strm_order = 3,
+#                           dwnstrm_sites = F)
+# save(nhd_list, file = here("data/derived_data/spatial/sf_flowlines.rda"))
+load(here("data/derived_data/spatial/sf_flowlines.rda"))
+
+# velocity barrier
+barrier_pt = tribble(~site, ~latitude, ~longitude,
+                     "Velocity Barrier", 45.797042, -115.782912) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+# create map
+sf_map = ggplot() +
+  # flowlines
+  geom_sf(data = nhd_list$flowlines,
+          aes(color = as.factor(StreamOrde),
+              size = StreamOrde)) +
+  scale_color_viridis_d(direction = -1,
+                        option = "D",
+                        name = "Stream\nOrder",
+                        end = 0.8) +
+  scale_size_continuous(range = c(0.2, 1.2),
+                        guide = 'none') +
+  # basin outline
+  geom_sf(data = nhd_list$basin,
+          fill = NA,
+          lwd = 2) +
+  # add sites with labels
+  geom_sf(data = sf_sites_sf,
+          size = 4,
+          color = "black") +
+  ggrepel::geom_label_repel(
+    data = sf_sites_sf,
+    aes(label = site_code, 
+        geometry = geometry),
+    size = 3,
+    stat = "sf_coordinates",
+    min.segment.length = 0,
+    max.overlaps = 50) +
+  # velocity barrier point
+  geom_sf(data = barrier_pt,
+          size = 4,
+          color = "red") +
+  theme_bw() +
+  theme(axis.title = element_blank())
+sf_map
+
+```
+
+```{r sites-table}
+sf_sites_tbl = config %>%
+  filter(site_code %in% sf_sites) %>%
+  select(site_code,
+         site_name,
+         rkm,
+         latitude,
+         longitude) %>%
+  distinct() %>%
+  mutate(rkm = c(94, 1, 2, 60, 81)) %>%
+  arrange(rkm) %>%
+  rename(
+    Site = site_code,
+    Name = site_name,
+    Latitude = latitude,
+    Longitude = longitude
+  ) %>%
+  kable(booktabs = T,
+        align = "clccc",
+        caption = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, and location.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+sf_sites_tbl
+
+```
+
+# Evaluation
+
+## Data
+
+Our evaluation used information from PIT-tagged adult steelhead and Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. First, we queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam for steelhead and Chinook salmon, during spawn years 2022 and 2023, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any returning adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater River and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information which will be important for subsequent analyses. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for Chinook salmon after September 15 to avoid detections of any kelts, shed tags, etc. The compressed and filtered detections for steelhead and Chinook salmon for spawn years 2022 and 2023 are available for download [here](https://github.com/NPTfisheries/SF_Clearwater_Passage/blob/main/data/derived_data/sf_clearwater_filtered_detections.csv). The filtered detections were also converted to capture histories using the `buildCapHist()` function in `PITcleanr`. Finally, biological and origin (e.g., natural- versus hatchery-origin) for each tag were pulled from the Lower Granite Dam trapping database (LGTrappingDB). All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
+
+## Conversion Rates
+
+```{r conv-rates}
+# summarize tags, efficiencies, and conversion rates
+conv_rate_df = site_eff %>%
+  group_by(species, spawn_year) %>%
+  mutate(conv_rate_pct = round(est_tags_at_node / lag(est_tags_at_node) * 100, 1)) %>%
+  ungroup() %>%
+  mutate(across(eff_est:eff_se, ~ round(. * 100, digits = 1)))
+
+conv_rate_df %>%
+  select(
+    Species = species,
+    `Spawn Year` = spawn_year,
+    Site = node,
+    `Obs Tags` = tags_at_node,
+    `Detection Eff (%)` = eff_est,
+    `Detection Eff SE` = eff_se,
+    `Est Tags` = est_tags_at_node,
+    `Est Tags SE` = est_tags_se,
+    `Conversion (%)` = conv_rate_pct
+  ) %>%
+  kable(booktabs = T,
+        align = "lcccccccc",
+        caption = "Summary of tags observed at and estimated passing each site for steelhead and Chinook salmon, spawn years 2022 and 2023, including site efficiencies and conversion rates.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+```{r conv-rate-p, fig.cap = "test"}
+conv_rate_df %>%
+  select(species, spawn_year, node, conv_rate_pct) %>%
+  mutate(spawn_year = as.factor(spawn_year)) %>%
+  filter(node %in% c("SC3", "SC4")) %>%
+  ggplot(aes(x = node, y = conv_rate_pct, fill = spawn_year)) +
+  geom_col(position = "dodge") +
+  theme_classic() +
+  labs(x = "Site",
+       y = "Conversion Rate (%)",
+       fill = "Spawn Year") +
+  facet_wrap(~species)
+
+```
+
+<!--
 # Assessment
 
 ## Spawn Year and Release Group
@@ -96,8 +253,11 @@ Consider a study area map with locations of arrays (SC1, SC2, SC3, SC4, CRA), lo
 ## Ocean Age
 
 ## Water Level
+-->
 
 # Discussion
+
+## Limitations
 
 First Newsome Creek juvenile releases occurred in spring 2022; 1-ocean adults will return to SF Clearwater in spring 2024 and 2-ocean adults in spring 2025.
 
