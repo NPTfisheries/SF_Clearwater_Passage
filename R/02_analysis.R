@@ -228,10 +228,7 @@ pass_by_wl = sf_df %>%
          sc4_water_level_m) %>%
   # get only fish that at least arrived at SC3
   filter(pass_sc3 == T | success == T) %>%
-  filter(!is.na(sc4_water_level_m)) %>%
-  mutate(wl_bin = cut(sc4_water_level_m,
-                      breaks = wl_bins,
-                      labels = wl_bin_labels))
+  filter(!is.na(sc4_water_level_m))
 
 wl_bins = seq(floor(min(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,
               ceiling(max(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,

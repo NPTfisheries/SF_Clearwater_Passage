@@ -65,8 +65,7 @@ options(knitr.kable.NA = '--')
 # run this if running chunks directly
 
 # for formatting
-# library(kableExtra)
-# library(ggpubr)
+library(kableExtra)
 
 # for analysis
 library(tidyverse)
@@ -74,7 +73,7 @@ library(PITcleanr)
 library(here)
 library(sf)
 library(ggplot2)
-library(kableExtra)
+library(janitor)
 
 ```
 
@@ -105,10 +104,6 @@ sc4_env = read_csv(here("data/raw_data/SC4_enviro_5f1ff362-1201-4136-a630-0ba05c
 ```{r data-prep}
 # detection by tag in wide format
 comp_filter_wide = comp_filter %>%
-  # reset slots to start at 1
-  # group_by(tag_code) %>%
-  # mutate(slot = 1:n()) %>%
-  # ungroup() %>%
   select(species,
          spawn_year,
          tag_code,
@@ -224,7 +219,7 @@ sf_map = ggplot() +
           lwd = 2) +
   # add sites with labels
   geom_sf(data = sf_sites_sf,
-          size = 4,
+          size = 3,
           color = "black") +
   ggrepel::geom_label_repel(
     data = sf_sites_sf,
@@ -271,6 +266,7 @@ sf_sites_tbl
 
 ```
 
+
 # Evaluation
 
 ## Data
@@ -308,7 +304,7 @@ conv_rate_df %>%
 
 ```
 
-```{r conv-rate-p, fig.cap = "test"}
+```{r conv-rate-p, fig.cap = "Conversion rates for Chinook salmon and steelhead to sites SC3 and SC4 on the South Fork Clearwater River. Conversion rate represents the percentage of tagged fish estimated to have arrived at the site of those that passed the previous site downstream."}
 conv_rate_df %>%
   select(species, spawn_year, node, conv_rate_pct) %>%
   mutate(spawn_year = as.factor(spawn_year)) %>%
@@ -323,17 +319,303 @@ conv_rate_df %>%
 
 ```
 
-<!--
-# Assessment
+## Length and Saltwater Age
 
-## Spawn Year and Release Group
+```{r length-tbl}
+# length bins and labels
+bins = seq(floor(min(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
+           ceiling(max(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
+           by = 50)
+tmp = paste0(bins, "-", lead(bins))
+bin_labels = tmp[1:(length(tmp) - 1)]
 
-## Fish Length
+# passage by length
+pass_by_fl = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         lgr_fl_mm) %>%
+  filter(!is.na(lgr_fl_mm)) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  mutate(fl_bin = cut(lgr_fl_mm,
+                      breaks = bins,
+                      labels = bin_labels)) %>%
+  group_by(species, fl_bin) %>%
+  summarize(n_tags = n(),
+            success = sum(success)) %>%
+  mutate(conv_rate = round((success / n_tags) * 100, 1))
 
-## Ocean Age
+pass_by_fl %>%
+  rename(
+    Species = species,
+    `FL bin (mm)` = fl_bin,
+    `Obs Tags` = n_tags,
+    `Obs Tags Passing` = success,
+    `Conversion (%)` = conv_rate
+  ) %>%
+  kable(booktabs = T,
+        align = "ccccc",
+        caption = "The number of tags observed arriving at SC3 (Obs Tags), and of those, the number and percentage observed arriving at SC4 (Obs Tags Passing), by fork length (mm) bin.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
 
-## Water Level
--->
+```
+
+```{r sw-age-tbl}
+# passage by saltwater age
+pass_by_sw_age = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         bio_scale_final_age) %>%
+  # convert scale age to saltwater age
+  mutate(sw_age = gsub(".*:","", bio_scale_final_age)) %>%
+  mutate(sw_age = case_when(
+    sw_age == "A" ~ NA,
+    TRUE ~ sw_age)) %>%
+  filter(!is.na(sw_age)) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  group_by(species, sw_age) %>%
+  summarize(n_tags = n(),
+            success = sum(success)) %>%
+  mutate(conv_rate = round((success / n_tags) * 100, 1))
+
+pass_by_sw_age %>%
+  rename(
+    Species = species,
+    `Saltwater Age` = sw_age,
+    `Obs Tags` = n_tags,
+    `Obs Tags Passing` = success,
+    `Conversion (%)` = conv_rate
+  ) %>%
+  kable(booktabs = T,
+        align = "ccccc",
+        caption = "The number of tags observed arriving at SC3 (Obs Tags), and of those, the number and percentage observed arriving at SC4 (Obs Tags Passing), by saltwater age.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023."}
+# plot length-by-age, just of interest
+sf_df %>%
+  select(species,
+         lgr_fl_mm,
+         bio_scale_final_age) %>%
+  filter(!is.na(lgr_fl_mm), !is.na(bio_scale_final_age)) %>%
+  mutate(sw_age = gsub(".*:","", bio_scale_final_age)) %>%
+  mutate(sw_age = case_when(
+    sw_age == "A" ~ NA,
+    TRUE ~ sw_age)) %>%
+  filter(!is.na(sw_age)) %>%
+  ggplot(aes(x = sw_age,
+             y = lgr_fl_mm)) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(x = "Saltwater Age",
+       y = "FL (mm)") +
+  facet_wrap(~species)
+
+```
+
+```{r fl-by-success, fig.cap = "Fork length of PIT-tagged adult Chinook salmon and steelhead that arrived at SC4 (TRUE) versus those that passed SC3, but did not arrive to SC4 (FALSE)."}
+# compare length of fish observed arriving at SC4, versus those that did not
+sf_df %>%
+  select(species,
+         tag_code,
+         lgr_fl_mm,
+         pass_sc3,
+         success) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  filter(!is.na(lgr_fl_mm)) %>%
+  ggplot(aes(x = success,
+             y = lgr_fl_mm)) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(x = "Successful Passage to SC4",
+       y = "FL (mm)") +
+  facet_wrap(~species)
+
+```
+
+## Flow
+
+```{r SC4-water-level}
+# passage by water level
+pass_by_wl = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         sc4_water_level_m) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  filter(!is.na(sc4_water_level_m))
+
+# water level bins and labels
+wl_bins = seq(floor(min(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,
+              ceiling(max(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,
+              by = 0.2)
+tmp = paste0(wl_bins, "-", lead(wl_bins))
+wl_bin_labels = tmp[1:(length(tmp) - 1)]
+
+pass_by_wl2 = pass_by_wl %>%
+  mutate(wl_bin = cut(sc4_water_level_m,
+                      breaks = wl_bins,
+                      labels = wl_bin_labels)) %>%
+  group_by(species, wl_bin) %>%
+  summarize(n_tags = n(),
+            success = sum(success)) %>%
+  mutate(conv_rate = round((success / n_tags) * 100, 1))
+
+pass_by_wl2 %>%
+  rename(
+    Species = species,
+    `Water Level (m)` = wl_bin,
+    `Obs Tags` = n_tags,
+    `Obs Tags Passing` = success,
+    `Conversion (%)` = conv_rate
+  ) %>%
+  kable(booktabs = T,
+        align = "ccccc",
+        caption = "The number of tags observed arriving at SC3 (Obs Tags), and of those, the number and percentage observed arriving at SC4 (Obs Tags Passing), by water level (m) at SC4.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+```{r wl-by-success, fig.cap = "Water level (m) at the SC4 environmental probe at the time the PIT-tagged Chinook salmon or steelhead was last detected at SC1, SC2, or SC3 for those adults that successfully migrated to SC4 (TRUE) versus those that migrated to SC3, but did not arrive at SC4 (FALSE)."}
+sf_df %>%
+  select(species,
+         tag_code,
+         sc4_water_level_m,
+         pass_sc3,
+         success) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  filter(!is.na(sc4_water_level_m)) %>%
+  ggplot(aes(x = success,
+             y = sc4_water_level_m)) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(x = "Successful Passage to SC4",
+       y = "Water Level (m) at SC4") +
+  facet_wrap(~species)
+
+```
+
+```{r cfs}
+# cfs bins and labels
+cfs_breaks = 500
+cfs_bins = seq(floor(min(sf_df$daily_mean_cfs, na.rm = T) / cfs_breaks) * cfs_breaks,
+               ceiling(max(sf_df$daily_mean_cfs, na.rm = T) / cfs_breaks) * cfs_breaks,
+               by = cfs_breaks)
+tmp = paste0(cfs_bins, "-", lead(cfs_bins))
+cfs_bin_labels = tmp[1:(length(tmp) - 1)]
+
+# passage by cfs at Stites
+pass_by_cfs = sf_df %>%
+  select(species,
+         tag_code,
+         daily_mean_cfs,
+         pass_sc3,
+         success) %>%
+  # get only fish that at least arrived at SC3
+  filter(pass_sc3 == T | success == T) %>%
+  filter(!is.na(daily_mean_cfs)) %>%
+  mutate(cfs_bin = cut(daily_mean_cfs,
+                       breaks = cfs_bins,
+                       labels = cfs_bin_labels)) %>%
+  group_by(species, cfs_bin) %>%
+  summarize(n_tags = n(),
+            success = sum(success)) %>%
+  mutate(conv_rate = round((success / n_tags) * 100, 1))
+
+pass_by_cfs %>%
+  rename(
+    Species = species,
+    `Discharge (cfs)` = cfs_bin,
+    `Obs Tags` = n_tags,
+    `Obs Tags Passing` = success,
+    `Conversion (%)` = conv_rate
+  ) %>%
+  kable(booktabs = T,
+        align = "ccccc",
+        caption = "The number of tags observed arriving at SC3 (Obs Tags), and of those, the number and percentage observed arriving at SC4 (Obs Tags Passing), by cfs near Stites, ID (USGS gage 13338500).") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+## Release Group
+
+```{r release-groups}
+# release groups in dataset
+sf_df %>%
+  select(species,
+         tag_code, 
+         rel_site) %>%
+  group_by(species, rel_site) %>%
+  summarise(n = n()) %>%
+  rename(Species = species,
+         `Release Site` = rel_site) %>%
+  kable(booktabs = T,
+        align = "ccc",
+        caption = "Release groups present in PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023 combined.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+```{r success-by-rg}
+# passage by release group
+pass_by_rg = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         rel_site) %>%
+  mutate(rel_group = case_when(
+    rel_site == "CLWRSF" ~ "South Fork Clearwater River",
+    rel_site == "MEAD2C" ~ "Meadow Creek",
+    rel_site == "NEWSOC" ~ "Newsome Creek",
+    TRUE ~ "Other")) %>%
+  group_by(species, rel_group) %>%
+  summarize(n_tags = n(),
+            success = sum(success)) %>%
+  mutate(conv_rate = round((success / n_tags) * 100, 1))
+
+pass_by_rg %>%
+  rename(
+    Species = species,
+    `Release Group` = rel_group,
+    `Obs Tags` = n_tags,
+    `Obs Tags Passing` = success,
+    `Conversion (%)` = conv_rate
+  ) %>%
+  kable(booktabs = T,
+        align = "clccc",
+        caption = "The number of tags observed arriving at SC3 (Obs Tags), and of those, the number and percentage observed arriving at SC4 (Obs Tags Passing), by release group.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
 
 # Discussion
 
