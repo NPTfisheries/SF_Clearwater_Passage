@@ -459,6 +459,8 @@ sf_df %>%
 
 ## Flow
 
+We summarized conversion rates by water level (m) recorded at SC4 using the IPTDS environmental probe (Table \@ref(tab:SC4-water-level)). It is worth noting that above a water level of 0.8 m, only 1 of 23 steelhead that passed SC3 arrived at SC4; however, sample sizes are small and nearly all Chinook salmon that passed SC3 arrived at SC4 at similar water levels. For this summary, the water level recorded for each fish was the water level at SC4 when that fish was most recently seen at SC3, SC2, or SC1.
+
 ```{r SC4-water-level}
 # passage by water level
 pass_by_wl = sf_df %>%
@@ -505,6 +507,8 @@ pass_by_wl2 %>%
 
 ```
 
+We also summarized the water level (m) at the time that each adult were most recently observed for those adults that arrived at SC4 (TRUE) versus those observed at SC3 that did not arrive at SC4 (FALSE). 
+
 ```{r wl-by-success, fig.cap = "Water level (m) at the SC4 environmental probe at the time the PIT-tagged Chinook salmon or steelhead was last detected at SC1, SC2, or SC3 for those adults that successfully migrated to SC4 (TRUE) versus those that migrated to SC3, but did not arrive at SC4 (FALSE)."}
 sf_df %>%
   select(species,
@@ -524,6 +528,8 @@ sf_df %>%
   facet_wrap(~species)
 
 ```
+
+Similar to above, we summarized conversion rates by discharge (cfs) at USGS gage 13338500 near Stites, ID (Table \@ref(tab:cfs)). Here, only 4 of 43 adult steelhead that passed SC3 arrived at SC4 at flows greater than 1500 csf; but again, sample sizes are low and conversion rates for Chinook salmon at similar flows are high. 
 
 ```{r cfs}
 # cfs bins and labels
@@ -570,6 +576,8 @@ pass_by_cfs %>%
 ```
 
 ## Release Group
+
+We need to consider release groups when evaluating conversion or passage rates through the high-velocity section; adults that return from juvenile releases 
 
 ```{r release-groups}
 # release groups in dataset
