@@ -275,6 +275,8 @@ Our evaluation used information from PIT-tagged adult steelhead and Chinook salm
 
 ## Conversion Rates
 
+We estimated conversion rates to each IPTDS for Chinook salmon and steelhead in spawn years 2022 and 2023 (Table \@ref(tab:conv-rates)). The conversion rate is an estimate of the percentage of PIT-tagged adults that arrived at a given site of those that passed the previous site. For example, in SY2022, we estimated that 12 PIT-tagged steelhead passed SC4, which is 15.6% of the 77 PIT-tagged steelhead estimated to have passed SC3. Table \@ref(tab:conv-rates) provides the number of tags observed, detection efficiencies, expanded (estimated) tags and conversion rates by IPTDS site, species, and spawn year. 
+
 ```{r conv-rates}
 # summarize tags, efficiencies, and conversion rates
 conv_rate_df = site_eff %>%
@@ -304,6 +306,8 @@ conv_rate_df %>%
 
 ```
 
+Conversion rates to sites SC3 and SC4, within each species, are similar in both spawn years 2022 and 2023 (Figure \@ref(fig:conv-rate-p)).
+
 ```{r conv-rate-p, fig.cap = "Conversion rates for Chinook salmon and steelhead to sites SC3 and SC4 on the South Fork Clearwater River. Conversion rate represents the percentage of tagged fish estimated to have arrived at the site of those that passed the previous site downstream."}
 conv_rate_df %>%
   select(species, spawn_year, node, conv_rate_pct) %>%
@@ -320,6 +324,8 @@ conv_rate_df %>%
 ```
 
 ## Length and Saltwater Age
+
+We summarized conversion rates by fork length (mm) and saltwater age for those adults that were sampled and/or PIT-tagged at Lower Granite Dam (Tables \@ref(tab:length-tbl) and \@ref(tab:sw-age-tbl)). If the river section of interest was problematic to adult passage due to high water velocities, we might anticipate that conversion rates are higher for larger or older fish because of increased fitness and swimming capabilities. Sample sizes are low, but no noticeable trends were observed in conversion rates by length or saltwater age (Tables \@ref(tab:length-tbl) and \@ref(tab:sw-age-tbl)).
 
 ```{r length-tbl}
 # length bins and labels
@@ -404,6 +410,8 @@ pass_by_sw_age %>%
 
 ```
 
+We summarized length-at-saltwater age relationships for both Chinook salmon and steelhead for PIT-tagged adults returning to the South Fork Clearwater River in spawn years 2022 and 2023 (Figure \@ref(fig:fl-by-age)).
+
 ```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023."}
 # plot length-by-age, just of interest
 sf_df %>%
@@ -425,6 +433,8 @@ sf_df %>%
   facet_wrap(~species)
 
 ```
+
+We also summarized the fork lengths of PIT-tagged adults that arrived at the SC4 site (TRUE) versus those observed at SC3, but did not arrive at SC4 (FALSE; Figure \@ref(fig:fl-by-success)). Again, we might hypothesize that adults arriving to SC4 are larger than those that do not if water velocities were problematic for smaller or younger fish.
 
 ```{r fl-by-success, fig.cap = "Fork length of PIT-tagged adult Chinook salmon and steelhead that arrived at SC4 (TRUE) versus those that passed SC3, but did not arrive to SC4 (FALSE)."}
 # compare length of fish observed arriving at SC4, versus those that did not
