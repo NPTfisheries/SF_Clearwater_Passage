@@ -577,7 +577,7 @@ pass_by_cfs %>%
 
 ## Release Group
 
-We need to consider release groups when evaluating conversion or passage rates through the high-velocity section; adults that return from juvenile releases 
+We also considered release groups when evaluating conversion or passage rates through the high-velocity section; adults that return from juvenile releases downstream of the reach may not have the propensity to migrate through the reach. Table \@ref(tab:release groups) shows that among adult Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023, only 22 steelhead were from a juvenile release upstream near Newsome Creek (NEWSOC). Of those 22 steelhead, 3 were observed migrating through the high-velocity reach and arrived at SC4 (Table \@ref(tab:success-by-rg)). 
 
 ```{r release-groups}
 # release groups in dataset
@@ -637,9 +637,9 @@ pass_by_rg %>%
 
 # Discussion
 
-## Limitations
+Based on adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Conversion rates to SC4 from SC3 were 13.9% and 15.6% for adult in spawn years 2022 and 2023, respectively; however, those rates are not considerable different that conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Very few adult steelhead were observed migrating to SC4 during higher flows (Table \@ref(tab:cfs)), but sample sizes are low. Moreover, very few adults from juvenile releases upstream of the high-velocity reach were available for our evaluation.
 
-First Newsome Creek juvenile releases occurred in spring 2022; 1-ocean adults will return to SF Clearwater in spring 2024 and 2-ocean adults in spring 2025.
+Juvenile steelhead were released in Newsome Creek in spring 2022; 1-ocean adults from those releases will return to the South Fork Clearwater River in spring 2024 and 2-ocean adults in spring 2025. Those returning adults should provide a more thorough evaluation of passage through the high-velocity reach.
 
 
 # Literature Cited
