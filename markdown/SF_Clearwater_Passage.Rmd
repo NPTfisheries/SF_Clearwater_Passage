@@ -12,7 +12,7 @@ author:
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   bookdown::html_document2:
-    theme: yeti
+    theme: cerulean
     toc: yes
     toc_depth: 3
     toc_float:
@@ -632,6 +632,9 @@ pass_by_cfs %>%
 Finally, we also considered release groups when evaluating conversion rates through the high-velocity reach; adults that return from juvenile releases downstream of the reach may not have the propensity to migrate through the reach. In other words, we are primarily interested in adults returning from juvenile releases upstream of the high-velocity reach to compare passage to SC4 relative to downstream reaches. Table \@ref(tab:release groups) shows that among adult Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023, only 22 steelhead were from a juvenile release upstream near Newsome Creek (NEWSOC). Of those 22 steelhead adults, 11 (50.0%) were observed at SC3 of which 3 (27.2%) were observed migrating through the high-velocity reach and arrived at SC4 (Table \@ref(tab:success-by-rg)). 
 
 ```{r release-groups}
+# query MRR sites
+mrr_df = queryMRRMeta()
+
 # release groups in dataset
 sf_df %>%
   select(species,
@@ -639,12 +642,23 @@ sf_df %>%
          rel_site) %>%
   group_by(species, rel_site) %>%
   summarise(n = n()) %>%
+  left_join(mrr_df %>%
+              select(siteCode,
+                     name,
+                     type,
+                     rkm),
+            by = c("rel_site" = "siteCode")) %>%
+  mutate(`Up or Down` = case_when(
+    rel_site == "NEWSOC" ~ "Upstream",
+    type == "IntraDamReleaseSite" ~ "Unknown",
+    TRUE ~ "Downstream")) %>%
   rename(Species = species,
-         `Release Site` = rel_site) %>%
-  mutate(`Up or Down` = ifelse(`Release Site` == "NEWSOC", "Upstream", "Downstream")) %>%
+         `Release Site` = rel_site,
+         `Site Name` = name,
+         `Site Type` = type) %>%
   kable(booktabs = T,
-        align = "cccc",
-        caption = "Release groups present in PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023 combined.") %>%
+        align = "ccclllc",
+        caption = "Release groups present in PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023 combined. 'Up or Down' indicates whether the release occurs upstream or downstream of the high-velocity reach") %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -743,17 +757,38 @@ sf_rel_summ = sf_df %>%
 
 # Discussion
 
-Based on adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Conversion rates to SC4 from SC3 were 13.9% and 15.6% for adult in spawn years 2022 and 2023, respectively; however, those rates are not considerable different that conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Very few adult steelhead were observed migrating to SC4 during higher flows (Table \@ref(tab:cfs)), but sample sizes are low. Moreover, very few adults from juvenile releases upstream of the high-velocity reach were available for our evaluation.
+Based on PIT-tagged adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Estimated conversion rates to SC4 from SC3 were 13.9% and 15.6% for adult in spawn years 2022 and 2023, respectively; however, those rates are not considerably different that conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Moreover, there were no discernable patterns to indicate that larger or older steelhead can pass the reach at higher rates than smaller fish, which would indicate that the reach is problematic for fish with weaker swimming capabilities. Very few adult steelhead were observed migrating to SC4 during water levels greater than 0.8m at SC4 (Table \@ref(tab:SC4-water-level)) or at flows greater than ~2,000 cfs (Table \@ref(tab:cfs)), but sample sizes are low. Finally, very few adults from juvenile releases upstream of the high-velocity reach were available for the evaluation; using observation data from adult returns originating from juvenile releases downstream of the reach is problematic because we are unsure about their propensity to migrate through the reach.
 
-Juvenile steelhead were released in Newsome Creek in spring 2022; 1-ocean adults from those releases will return to the South Fork Clearwater River in spring 2024 and 2-ocean adults in spring 2025. Those returning adults should provide a more thorough evaluation of passage through the high-velocity reach.
+The number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in spring 2022 (Table \@ref(tab:newsoc)); 1-ocean adults from spring 2022 releases will return to the South Fork Clearwater River in spring 2024 and 2-ocean adults in spring 2025. Similarly, juvenile releases from 2023 are anticipated to return in spawn years 2025 and 2025. Those returning adults should provide a more thorough evaluation of passage through the high-velocity reach.
 
-<!-- Make a note on using season-wide detection efficiencies -->
+```{r newsoc}
+juv_rel_df %>%
+  filter(rel_site == "NEWSOC") %>%
+  select(rel_site,
+         release_year_yyyy,
+         rel_date,
+         mark_count) %>%
+  group_by(rel_site,
+           release_year_yyyy) %>%
+  summarize(mark_count = sum(mark_count)) %>%
+  rename(`Release Site` = rel_site,
+         `Release Year` = release_year_yyyy,
+         `Tag Count` = mark_count) %>%
+  kable(booktabs = T,
+        align = "ccc",
+        caption = "Number of PIT-tagged juveniles released within Newsome Creek releases by year.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of the total number of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or discharge; however, we used season-wide detection efficiencies largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows. 
 
 
 # Literature Cited
 
 <!-- The following line ensures the references appear here for the MS Word or HTML output files, rather than right at the end of the document (this will not work for PDF files):  -->
-
 ::: {#refs}
 :::
 
