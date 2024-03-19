@@ -168,7 +168,7 @@ sf_df = rbind(sy2022_chnk_ch,
 
 ## Study area
 
-The section of river considered to be a potential velocity barrier is located on river kilometer (rkm) 71 of the South Fork Clearwater River (Figure \@ref(fig:study-map)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) additionally show each of the instream PIT tag detection sites (IPTDS) used in the evaluation which detect adult steelhead and Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River.
+The section of river considered to be a potential velocity barrier is located on river kilometer (rkm) 71 of the South Fork Clearwater River (Figure \@ref(fig:study-map)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) show each of the instream PIT tag detection sites (IPTDS) used in the evaluation which detect tagged adult steelhead and Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River.
 
 ```{r study-map, message = F, fig.cap = "Map of the study area including the locations of each instream PIT tag detection system and the approximate location of the potential velocity barrier shown in red."}
 # sites of interest
@@ -257,7 +257,7 @@ sf_sites_tbl = config %>%
   ) %>%
   kable(booktabs = T,
         align = "clccc",
-        caption = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, and location.") %>%
+        caption = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, river kilometer (rkm) from the mouth of the SF Clearwater River, and location.") %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -270,11 +270,11 @@ sf_sites_tbl
 
 ## Data
 
-Our evaluation used information from PIT-tagged adult steelhead and Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. First, we queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam for steelhead and Chinook salmon, during spawn years 2022 and 2023, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any returning adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any PIT-tagged adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater River and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information, plus any observations, for subsequent analyses. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` functions in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for Chinook salmon after September 15 to avoid detections of any kelts, shed tags, etc. The compressed and filtered detections for steelhead and Chinook salmon for spawn years 2022 and 2023 are available for download [here](https://github.com/NPTfisheries/SF_Clearwater_Passage/blob/main/data/derived_data/sf_clearwater_filtered_detections.csv). The filtered detections were also converted to capture histories using the `buildCapHist()` function in `PITcleanr`. Finally, biological and origin (e.g., natural- versus hatchery-origin) information for each tag were pulled from the Lower Granite Dam trapping database (LGTrappingDB). All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
+Our evaluation used information from PIT-tagged adult steelhead and Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. We queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam in returning adult steelhead and Chinook salmon, during spawn years 2022 and 2023, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any PIT-tagged adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater River and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information and any subsequent observations. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` functions in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for Chinook salmon after September 15 to avoid detections of any kelts (steelhead only), shed tags, etc. The compressed and filtered detections for steelhead and Chinook salmon for spawn years 2022 and 2023 are available for download [here](https://github.com/NPTfisheries/SF_Clearwater_Passage/blob/main/data/derived_data/sf_clearwater_filtered_detections.csv). The filtered detections were also converted to capture histories using the `buildCapHist()` function in `PITcleanr`. Finally, biological (e.g., sex, length) and origin (e.g., natural- versus hatchery-origin) information for each tag were pulled from the Lower Granite Dam trapping database (LGTrappingDB). All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
 
 ## Conversion Rates
 
-First, we estimated conversion rates to each IPTDS for Chinook salmon and steelhead in spawn years 2022 and 2023 (Table \@ref(tab:conv-rates)). The conversion rate provides an estimate of the percentage of PIT-tagged adults that arrive at a given site of those that passed the previous site. For example, in SY2023, we estimated that 12 PIT-tagged steelhead passed SC4, which is 15.6% of the 77 PIT-tagged steelhead estimated to have passed SC3. Table \@ref(tab:conv-rates) provides the number of tags observed at each IPTDS, plus estimates of detection efficiencies, expanded (estimated) tags, and conversion rates to each by species and spawn year.
+First, we estimated conversion rates to each IPTDS for steelhead and Chinook salmon in spawn years 2022 and 2023 (Table \@ref(tab:conv-rates)). The conversion rate provides an estimate of the percentage of PIT-tagged adults that arrive at a given site of those that passed the previous site. For example, in SY2023, we estimated that 12 PIT-tagged steelhead passed SC4, which is 15.6% of the 77 PIT-tagged steelhead estimated to have passed SC3. Table \@ref(tab:conv-rates) provides the number of tags observed at each IPTDS, plus estimates of detection efficiencies, expanded (estimated) tags, and conversion rates to each IPTDS by species and spawn year.
 
 ```{r conv-rates}
 # summarize tags, efficiencies, and conversion rates
@@ -315,32 +315,33 @@ conv_rate_df %>%
 
 ```
 
-Conversion rates to SC3 and SC4, within each species, were similar in both spawn years 2022 and 2023 (Figure \@ref(fig:conv-rate-p)), suggesting that adults had a similar probability of passing to SC4 as to SC3; although conversion rates for Chinook salmon were much higher than for steelhead.
+Conversion rates to SC3 and SC4, within each species, were similar in both spawn years 2022 and 2023 (Figure \@ref(fig:conv-rate-p)), suggesting that adults had a similar probability of passing to SC4 as they did to SC3; although conversion rates for Chinook salmon were much higher than for steelhead.
 
-```{r conv-rate-p, fig.cap = "Conversion rates for Chinook salmon and steelhead to sites SC3 and SC4 on the South Fork Clearwater River. Conversion rate represents the percentage of tagged fish estimated to have arrived at the site of those that passed the previous site downstream."}
+```{r conv-rate-p, fig.cap = "Conversion rates for Chinook salmon and steelhead to sites SC2, SC3, and SC4 on the South Fork Clearwater River. Conversion rate represents the percentage of tagged fish estimated to have arrived at the site of those that passed the previous site downstream."}
 conv_rate_df %>%
   select(species, spawn_year, node, conv_rate_pct) %>%
   mutate(spawn_year = as.factor(spawn_year)) %>%
-  filter(node %in% c("SC3", "SC4")) %>%
+  filter(node %in% c("SC2", "SC3", "SC4")) %>%
   ggplot(aes(x = node, y = conv_rate_pct, fill = spawn_year)) +
   geom_col(position = "dodge") +
   theme_classic() +
   labs(x = "Site",
        y = "Conversion Rate (%)",
        fill = "Spawn Year") +
-  facet_wrap(~species)
+  facet_wrap(~species, nrow = 2)
 
 ```
 
 ## Length and Saltwater Age
 
-Next, we summarized conversion rates by fork length (mm) and saltwater age for PIT-tagged adults observed at SC3 and SC4. In particular, we were interested in the percentage of tags at SC3 that were later detected at SC4. If the barrier reach was problematic to adult passage due to high water velocities, we might anticipate that larger or older fish convert at higher rates due to increased fitness or swimming capabilities. Observed tags at SC3 and SC4 were converted to estimates of tags passing each array based on year- and species-specific detection probabilities (Table \@ref(tab:conv-rates)). Sample sizes are low, but no noticeable trends were observed in conversion rates by length or saltwater age (Tables \@ref(tab:length-tbl) and \@ref(tab:sw-age-tbl)).
+Next, we summarized conversion rates by fork length (mm) and saltwater age for PIT-tagged adults observed at SC3 and SC4. Here, we're interested in the conversion rate of PIT-tagged adults to SC4 from SC3 through the high-velocity reach. If the reach is problematic to adult passage due to high water velocities, we might anticipate that larger or older fish convert at higher rates due to increased fitness or swimming capabilities. The number of observed tags at SC3 and SC4 were expanded to estimates of tags passing each array based on year- and species-specific detection probabilities (Table \@ref(tab:conv-rates)). Sample sizes for some length and age classes are low, but no noticeable trends were observed in conversion rates by length or saltwater age (Tables \@ref(tab:length-tbl) and \@ref(tab:sw-age-tbl)).
 
 ```{r length-tbl}
 # length bins and labels
-bins = seq(floor(min(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
-           ceiling(max(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
-           by = 50)
+bin_size = 100
+bins = seq(floor(min(sf_df$lgr_fl_mm, na.rm = T) / bin_size) * bin_size,
+           ceiling(max(sf_df$lgr_fl_mm, na.rm = T) / bin_size) * bin_size,
+           by = bin_size)
 tmp = paste0(bins, "-", lead(bins))
 bin_labels = tmp[1:(length(tmp) - 1)]
 
@@ -440,7 +441,7 @@ pass_by_sw_age %>%
 
 ```
 
-Because length and age data were available for many adults tagged at Lower Granite Dam, we summarized length-at-saltwater age relationships for both Chinook salmon and steelhead for returning to the South Fork Clearwater River in spawn years 2022 and 2023 (Figure \@ref(fig:fl-by-age)).
+Because the length and age data were available for many adults tagged at Lower Granite Dam, we provide length-at-saltwater age relationships for both Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023 (Figure \@ref(fig:fl-by-age)).
 
 ```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 and 2023."}
 # plot length-by-age, just of interest
@@ -489,7 +490,7 @@ sf_df %>%
 
 ## Flow
 
-We summarized conversion rates by water level (m) recorded at SC4 using the IPTDS environmental probe (Table \@ref(tab:SC4-water-level)). It is worth noting that above a water level of 0.8 m, only 1 of 23 steelhead that passed SC3 arrived at SC4; however, sample sizes at higher water levels are low and nearly all Chinook salmon that passed SC3 arrived at SC4 at similar water levels. For this analysis, the water level recorded for each fish was the water level at SC4 when that fish was most recently observed at a site downstream of the barrier reach.
+We summarized conversion rates by water level (m) recorded at SC4 using the IPTDS environmental probe (Table \@ref(tab:SC4-water-level)). Above a water level of 0.8 m, only 1 of 23 steelhead that passed SC3 arrived at SC4; however, sample sizes at higher water levels are low and nearly all Chinook salmon that passed SC3 at similar water levels arrived at SC4. For this analysis, the water level recorded for each fish was the water level at SC4 when that fish was most recently observed at a site downstream of the high-velocity reach.
 
 ```{r SC4-water-level}
 # passage by water level
@@ -570,11 +571,11 @@ sf_df %>%
 
 ```
 
-Similar to above, we also summarized conversion rates by discharge (cfs) at USGS gage 13338500 near Stites, ID (Table \@ref(tab:cfs)). Here, only 4 of 43 adult steelhead that passed SC3 arrived at SC4 at flows greater than 1500 cfs; but again, sample sizes are low and conversion rates for Chinook salmon at similar flows are high. 
+Similar to above, we also summarized conversion rates by discharge (cfs) at USGS gage 13338500 near Stites, ID (Table \@ref(tab:cfs)). Here, only 4 of 52 adult steelhead that passed SC3 arrived at SC4 at flows greater than 2000 cfs; however, sample sizes are low and conversion rates for Chinook salmon at similar flows are high.
 
 ```{r cfs}
 # cfs bins and labels
-cfs_breaks = 500
+cfs_breaks = 1000
 cfs_bins = seq(floor(min(sf_df$daily_mean_cfs, na.rm = T) / cfs_breaks) * cfs_breaks,
                ceiling(max(sf_df$daily_mean_cfs, na.rm = T) / cfs_breaks) * cfs_breaks,
                by = cfs_breaks)
@@ -627,9 +628,47 @@ pass_by_cfs %>%
 
 ```
 
+```{r hydrograph}
+# stites hydrograph
+hydrograph = sf_stites_daily_cfs %>%
+  mutate(spawn_yr = case_when(
+    Date >= as.Date("2021-07-01") & Date <= "2022-06-30" ~ 2022,
+    Date >= as.Date("2022-07-01") & Date <= "2023-06-30" ~ 2023,
+  )) %>%
+  mutate(yday = yday(Date)) %>%
+  filter(!is.na(spawn_yr)) %>%
+  ggplot(aes(x = yday, y = daily_mean_cfs, color = as.factor(spawn_yr))) +
+  geom_line() +
+  geom_hline(yintercept = 1000, color = "red", linetype = "dashed") +
+  # scale_x_date(date_breaks = "1 month", 
+  #              date_labels = "%b") +
+  labs(x = "Day of Year", y = "Daily Mean Flow (cfs)", color = "Spawn Year") +
+  theme_bw()
+hydrograph
+
+# number of fish making it (or not) by yday to SC4 after arriving at SC3
+tmp = sf_df %>%
+  filter(pass_sc3 == T) %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         min_det_SC3) %>%
+  mutate(yday = yday(min_det_SC3)) %>%
+  group_by(species, spawn_year, success, yday) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(x = yday, y = n, fill = success)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Day of Year", y = "Number of Adults", color = "Successful Passage") +
+  theme_bw()
+# ABOVE NEEDS SOME WORK, DRAFT
+
+```
+
 ## Release Group
 
-Finally, we also considered release groups when evaluating conversion rates through the high-velocity reach; adults that return from juvenile releases downstream of the reach may not have the propensity to migrate through the reach. In other words, we are primarily interested in adults returning from juvenile releases upstream of the high-velocity reach to compare passage to SC4 relative to downstream reaches. Table \@ref(tab:release groups) shows that among adult Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023, only 22 steelhead were from a juvenile release upstream near Newsome Creek (NEWSOC). Of those 22 steelhead adults, 11 (50.0%) were observed at SC3 of which 3 (27.2%) were observed migrating through the high-velocity reach and arrived at SC4 (Table \@ref(tab:success-by-rg)). 
+Finally, we also considered release groups when evaluating conversion rates through the high-velocity reach; adults that return from juvenile releases downstream of the reach may not have the propensity to migrate through the reach. I.e., we are primarily interested in adults returning from juvenile releases upstream of the high-velocity reach (e.g., Newsome Creek) to compare passage to SC4 relative to downstream reaches. Table \@ref(tab:release groups) shows that among adult Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023, only 22 steelhead were from a juvenile release upstream near Newsome Creek (NEWSOC). Of those 22 steelhead adults, 11 (50.0%) were observed at SC3 of which 3 (27.2%) were observed migrating through the high-velocity reach and arrived at SC4 (Table \@ref(tab:success-by-rg)). 
 
 ```{r release-groups}
 # query MRR sites
@@ -757,7 +796,7 @@ sf_rel_summ = sf_df %>%
 
 # Discussion
 
-Based on PIT-tagged adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Estimated conversion rates to SC4 from SC3 were 13.9% and 15.6% for adult in spawn years 2022 and 2023, respectively; however, those rates are not considerably different that conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Moreover, there were no discernable patterns to indicate that larger or older steelhead can pass the reach at higher rates than smaller fish, which would indicate that the reach is problematic for fish with weaker swimming capabilities. Very few adult steelhead were observed migrating to SC4 during water levels greater than 0.8m at SC4 (Table \@ref(tab:SC4-water-level)) or at flows greater than ~2,000 cfs (Table \@ref(tab:cfs)), but sample sizes are low. Finally, very few adults from juvenile releases upstream of the high-velocity reach were available for the evaluation; using observation data from adult returns originating from juvenile releases downstream of the reach is problematic because we are unsure about their propensity to migrate through the reach.
+Based on PIT-tagged adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Estimated conversion rates to SC4 from SC3 were 13.9% and 15.6% for adults in spawn years 2022 and 2023, respectively; however, those rates are not considerably different than conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Moreover, there were no discernable patterns to indicate that larger or older steelhead can pass the reach at higher rates than smaller fish, which would indicate that the reach is problematic for fish with weaker swimming capabilities. Very few adult steelhead were observed migrating to SC4 during water levels greater than 0.8 m at SC4 (Table \@ref(tab:SC4-water-level)) or at flows greater than ~2,000 cfs (Table \@ref(tab:cfs)), but sample sizes are low. Finally, very few adults from juvenile releases upstream of the high-velocity reach were available for the evaluation; using observation data from adult returns originating from juvenile releases downstream of the reach is problematic because we are unsure about their propensity to migrate through the reach.
 
 The number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in spring 2022 (Table \@ref(tab:newsoc)); 1-ocean adults from spring 2022 releases will return to the South Fork Clearwater River in spring 2024 and 2-ocean adults in spring 2025. Similarly, juvenile releases from 2023 are anticipated to return in spawn years 2025 and 2025. Those returning adults should provide a more thorough evaluation of passage through the high-velocity reach.
 
@@ -771,19 +810,28 @@ juv_rel_df %>%
   group_by(rel_site,
            release_year_yyyy) %>%
   summarize(mark_count = sum(mark_count)) %>%
+  rbind(tibble(rel_site = "NEWSOC",
+       release_year_yyyy = c(2024, 2025, 2026),
+       mark_count = 15900)) %>%
+  mutate(`SW Age 1 SY` = release_year_yyyy + 2,
+         `SW Age 2 SY` = release_year_yyyy + 3) %>%
   rename(`Release Site` = rel_site,
          `Release Year` = release_year_yyyy,
          `Tag Count` = mark_count) %>%
   kable(booktabs = T,
-        align = "ccc",
-        caption = "Number of PIT-tagged juveniles released within Newsome Creek releases by year.") %>%
+        align = "ccccc",
+        caption = "Number of PIT-tagged juveniles released (or anticipated) within Newsome Creek releases by year, including years that each release group will return to spawn.") %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
 
 ```
 
-Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of the total number of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or discharge; however, we used season-wide detection efficiencies largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows. 
+Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of the total number of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or discharge; however, we used season-wide detection efficiencies largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows.
+
+<!-- Mike – the steelhead released in Newsome Creek are not adipose fin clipped.  They are intended to escape mark selective fisheries.  In addition, a portion of the steelhead released at the mouth of Meadow Ck, SF Clearwater are also not adipose fin clipped.  Pasted below are tables that display this information for 2024 releases.  Table 1.2a. has the release goal number for each location and Table 1.2b has the actual expected release numbers for this spring.
+
+Also – not sure if this has any impact or not but broodstock for the Clearwater Hatchery steelhead program is primarily collected by anglers fishing in the lower SF Clearwater.  Their target is to capture about 400 adults (and up to 475) that are removed and used for broodstock.  I guess they are essentially the same as ‘harvested’, however, I believe they keep adults that are adipose intact (not clipped) if they can determine it’s a hatchery fish (either eroded dorsal or CWT present).  Might be worth a check of IDFG database. -->
 
 
 # Literature Cited
