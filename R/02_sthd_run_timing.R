@@ -18,7 +18,7 @@ library(data.table)
 #---------------------
 # gather PIT-tag data
 
-# get side configuration info from PTAGIS
+# get site configuration info from PTAGIS
 # config = buildConfig(node_assign = "site")
 # save(config, file = here("data/derived_data/config.rda"))
 load(here("data/derived_data/config.rda"))
