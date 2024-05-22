@@ -16,96 +16,21 @@ library(janitor)
 library(data.table)
 
 #---------------------
-# gather PIT-tag data
-
-# get site configuration info from PTAGIS
-# config = buildConfig(node_assign = "site")
-# save(config, file = here("data/derived_data/config.rda"))
-load(here("data/derived_data/config.rda"))
-
-# south fork clearwater sites
-sf_sites = c("SC1",  # rkm 1; These rkms are from PTAGIS and I don't know their accuracy
-             "SC2",  # rkm 2   
-             "SC3",  # rkm 60
-             "SC4",  # rkm 81
-             "CRA")  # Crooked River IPTDS
-
-sf_config = config %>%
-  filter(node %in% c("GRA", sf_sites))
-
-# function to query DART observations for a given year
-queryObsDART_yr = function(year) {
-  queryObsDART(species = "Steelhead",
-               loc = "GRA",
-               spawn_year = year) %>%
-    group_by(tag_id) %>%
-    filter(any(obs_site %in% sf_sites)) %>%
-    mutate(spawn_year = year)
-} 
-
-# set years of data to download; also used further down
-years = 2012:2024 # 2012 is the first real year of IPTDS operation in SF Clearwater
-
-# SKIP UNLESS DATA NEEDS TO BE UPDATED: get all steelhead observations from DART for adults at 
-# GRA and upstream (includes newly and previously tagged fish)
-
-# dart_obs_list = map(years, queryObsDART_yr)
-# names(dart_obs_list) = years
-# save(dart_obs_list, file = here("data/derived_data/observations/sy12-24_sthd_dart_obs.rda"))
+# Compile Relevant Data
 
 # load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
-load(here("data/derived_data/observations/sy12-24_sthd_dart_obs.rda"))
-dart_obs_df = data.table::rbindlist(dart_obs_list)
+load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+dart_obs_df = data.table::rbindlist(dart_obs_list) %>%
+  # only need steelhead for this analysis
+  filter(species == "Steelhead")
 
-# write out tag lists for each spawn year
-for(y in years) {
-  tag_list = dart_obs_df %>%
-    filter(spawn_year == y) %>%
-    select(tag_id) %>%
-    distinct() %>%
-    pull() %>%
-    write_lines(paste0(here("data/derived_data/tag_lists/sthd_run_timing"), "/sy", y, ".txt"))
-}
+# load compressed and filtered PITcleanr observations
+load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+comp_df = bind_rows(comp_list) %>%
+  filter(species == "Steelhead")
 
-# now query CTHs for tags in PTAGIS
-
-# build SF Clearwater parent-child table
-parent_child = tribble(~"parent", ~"child",
-                       #"GRA", "SC1",
-                       "SC1", "SC2",
-                       "SC2", "SC3",
-                       "SC3", "SC4",
-                       "SC4", "CRA")
-
-# function to compress and filter detections for a given year
-compress_year = function(year) {
-  file_path = here(paste0("data/derived_data/cths/sthd_run_timing/sy", year, ".csv"))
-  cth = readCTH(file_path)
-  comp_df = compress(cth_file = cth,
-                     file_type = "PTAGIS",
-                     max_minutes = NA,
-                     configuration = config,
-                     units = "days",
-                     ignore_event_vs_release = TRUE) %>%
-    mutate(spawn_year = year) %>%
-    filter(min_det > ymd_hms(paste0(year, "-01-01 01:00:00"))) %>%
-    filterDetections(parent_child = parent_child,
-                     max_obs_date = paste0(year, "0531")) %>%
-    filter(auto_keep_obs == T) %>%
-    select(spawn_year,
-           everything(),
-           -direction,
-           -auto_keep_obs,
-           -user_keep_obs)
-} # end compress_year()
-
-# compress and filter all observations, combine into a list
-comp_list = map(years, compress_year)
-
-# get LGTrapping DB data
-lgr_trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2024-05-21.csv",
-                       show_col_types = F) %>%
-  mutate(SpawnYear = as.integer(str_replace(SpawnYear, "^SY", "")))
+#---------------------
+# Begin Run-Timing Summaries
 
 # get rears from dart_obs_df
 rears = dart_obs_df %>%
@@ -116,7 +41,7 @@ rears = dart_obs_df %>%
   distinct()
 
 # compile into single data frame and add rear
-comp_df = bind_rows(comp_list) %>%
+sf_obs = comp_df %>%
   # add rear from dart_obs_df
   left_join(dart_obs_df %>%
               select(tag_id,
@@ -138,15 +63,15 @@ comp_df = bind_rows(comp_list) %>%
   filter(node != "CRA")
   
 # number of rear by year
-comp_df %>% 
+sf_obs %>% 
   tabyl(spawn_year, rear)
 
 # number per node by year
-comp_df %>%
+sf_obs %>%
   tabyl(spawn_year, node)
 
 # summarize tags per day by spawn_year, node, and rear
-tags_per_day = comp_df %>%
+tags_per_day = sf_obs %>%
   # remove records with unknown rear
   filter(rear != "U") %>%
   group_by(spawn_year,
@@ -218,7 +143,7 @@ sf_run_quants = run_df2 %>%
   
 # write run timing quantiles table
 write_csv(sf_run_quants,
-          here("output/sf_clearwater_sthd_run_timing_quantiles.csv"))
+          here("output/run_timing/sf_clearwater_sthd_run_timing_quantiles.csv"))
 
 sites = unique(run_df$node)
 plot_list = list()
@@ -259,7 +184,7 @@ for(s in sites) {
  
 }
 all_sites_p = gridExtra::marrangeGrob(plot_list, nrow = 1, ncol = 1)
-ggsave(paste0(here("output/sf_clearwater_sthd_run_time.pdf")),
+ggsave(paste0(here("output/run_timing/sf_clearwater_sthd_run_time.pdf")),
        all_sites_p,
        width = 8.5,
        height = 14,
