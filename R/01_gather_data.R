@@ -138,6 +138,35 @@ glimpse(comp_list[["Steelhead_2024"]])
 save(comp_list, parent_child, file = here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
 
 #------------------------
+# LGTrapppingDB
+
+# get some biological data from LGR
+trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2024-05-21.csv")
+sf_lgr_df = bind_rows(comp_list) %>%
+  select(species,
+         spawn_year,
+         tag_code) %>%
+  distinct() %>%
+  # there is one repeat spawner; ignore for now
+  #group_by(tag_code) %>%
+  #mutate(count = n()) %>%
+  #filter(count > 1)
+  left_join(trap_df,
+            by = c("tag_code" = "LGDNumPIT")) %>%
+  select(tag_code,
+         spawn_year = SpawnYear,
+         lgr_collection_date = CollectionDate,
+         srr = SRR,
+         lgr_fl_mm = LGDFLmm,
+         gen_sex = GenSex,
+         pbt_by_hat = GenPBT_ByHat,
+         pbt_rel_group = GenPBT_RGroup,
+         bio_scale_final_age = BioScaleFinalAge,
+         lgd_mark_ad = LGDMarkAD)
+
+save(sf_lgr_df, file = here("data/derived_data/LGTrappingDB/sf_clearwater_lgtrappingdb.rda"))
+
+#------------------------
 # IPTDS Environmental Probe Data
 
 # load necessary libraries
@@ -149,6 +178,9 @@ source("C:/Git/SnakeR_IPTDS/keys/biologic_login.txt")
 # set sf clearwater env probe sites and years
 env_sites = c("SC1", "SC2", "SC4")
 env_years = 2021:2024
+
+env_sites = "SC4"
+env_year = 2017
 
 # loop to request data from each site
 for(s in env_sites) {
@@ -227,82 +259,3 @@ save(sf_elk_gage_info,
      file = here("data/derived_data/enviro/sf_clearwater_mean_daily_cfs.rda"))
 
 ### END SCRIPT
-
-
-# convert filtered cths into capture histories
-sy2022_chnk_ch = buildCapHist(filter_ch = sy2022_chnk_filter,
-                              parent_child = parent_child,
-                              configuration = config,
-                              keep_cols = c("tag_code",
-                                            "species",
-                                            "spawn_year")) %>%
-  mutate(species = "Chinook",
-         spawn_year = 2022)
-
-sy2023_chnk_ch = buildCapHist(filter_ch = sy2023_chnk_filter,
-                              parent_child = parent_child,
-                              configuration = config,
-                              keep_cols = c("tag_code",
-                                            "species",
-                                            "spawn_year")) %>%
-  mutate(species = "Chinook",
-         spawn_year = 2023)
-
-sy2022_sthd_ch = buildCapHist(filter_ch = sy2022_sthd_filter,
-                              parent_child = parent_child,
-                              configuration = config,
-                              keep_cols = c("tag_code",
-                                            "species",
-                                            "spawn_year")) %>%
-  mutate(species = "Steelhead",
-         spawn_year = 2022)
-
-sy2023_sthd_ch = buildCapHist(filter_ch = sy2023_sthd_filter,
-                              parent_child = parent_child,
-                              configuration = config,
-                              keep_cols = c("tag_code",
-                                            "species",
-                                            "spawn_year")) %>%
-  mutate(species = "Steelhead",
-         spawn_year = 2023)
-
-# define the capture history columns
-ch_cols = defineCapHistCols(parent_child = parent_child,
-                            configuration = config,
-                            use_rkm = TRUE)
-
-# get some biological data from LGR
-trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2023-11-20.csv")
-sf_lgr_df = comp_filter %>%
-  select(species,
-         spawn_year,
-         tag_code) %>%
-  distinct() %>%
-  # there is one repeat spawner; ignore for now
-  #group_by(tag_code) %>%
-  #mutate(count = n()) %>%
-  #filter(count > 1)
-  left_join(trap_df,
-            by = c("tag_code" = "LGDNumPIT")) %>%
-  select(tag_code,
-         spawn_year = SpawnYear,
-         lgr_collection_date = CollectionDate,
-         srr = SRR,
-         lgr_fl_mm = LGDFLmm,
-         gen_sex = GenSex,
-         pbt_by_hat = GenPBT_ByHat,
-         pbt_rel_group = GenPBT_RGroup,
-         bio_scale_final_age = BioScaleFinalAge,
-         lgd_mark_ad = LGDMarkAD)
-
-# write out objects for analysis
-save(sf_lgr_df,
-     sf_dart_obs,
-     comp_filter,
-     site_eff,
-     sy2022_chnk_ch,
-     sy2023_chnk_ch,
-     sy2022_sthd_ch,
-     sy2023_sthd_ch,
-     ch_cols,
-     file = here("data/derived_data/sf_clearwater_passage_data.rda"))

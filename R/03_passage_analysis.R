@@ -19,11 +19,24 @@ library(PITcleanr)
 # load compressed and filtered PITcleanr observations
 load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
 
+# load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
+load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+dart_obs_df = data.table::rbindlist(dart_obs_list) ; rm(dart_obs_list)
+
+# load environmental probe data
+iptds_env_df = list.files(path = here("data/derived_data/enviro/"), pattern = "^SC.*\\.rda$", full.names = TRUE) %>%
+  map_dfr(~ {
+    get(load(.))
+  })
+
+# load stream gage data
+load(here("data/derived_data/enviro/sf_clearwater_mean_daily_cfs.rda"))
+
 #---------------------
 # Site Detection Efficiencies
 
 comp_df = bind_rows(comp_list) %>%
-  filter(spawn_year %in% 2022:2024)
+  filter(spawn_year %in% 2022:2024) ; rm(comp_list)
 
 # build site order
 sf_site_order = buildNodeOrder(parent_child)
@@ -87,7 +100,7 @@ buildCapHist_sy = function(spc, yr) {
 # Create capture histories for each species and spawn year
 ch_list = map2(sy$species, sy$years, buildCapHist_sy)
 names(ch_list) = paste0(sy$species, "_", sy$years)
-ch_df = bind_rows(ch_list)
+ch_df = bind_rows(ch_list) ; rm(ch_list)
 
 # define the capture history columns
 ch_cols = defineCapHistCols(parent_child = parent_child,
@@ -105,8 +118,10 @@ save(ch_df,
 # calculate conversion rates with standard error
 conversion_df = node_est_df %>%
   group_by(species, spawn_year) %>%
-  mutate(conv_rate = est_tags_at_node / lag(est_tags_at_node),
-         conv_rate_se = sqrt((1 / est_tags_at_node) + (1 / lag(est_tags_at_node)))) %>%
+  mutate(conv_rate = pmin(est_tags_at_node / lag(est_tags_at_node), 1),
+         conv_rate_se = sqrt((1 / est_tags_at_node) + (1 / lag(est_tags_at_node))),
+         conv_l95ci = pmax(conv_rate - 1.96 * conv_rate_se, 0),
+         conv_u95ci = pmin(conv_rate + 1.96 * conv_rate_se, 1)) %>%
   ungroup() %>%
   select(species,
          spawn_year,
@@ -116,32 +131,42 @@ conversion_df = node_est_df %>%
          eff_se,
          est_tags_at_node,
          conv_rate,
-         conv_rate_se)
-  
-# river kilometers
-site_rkms = tribble(~"site", ~"rkm",
-                    "SC1", 1,
-                    "SC2", 2,
-                    "SC3", 60,
-                    "SC4", 81,
-                    "CRA", 94)
+         conv_rate_se,
+         conv_l95ci,
+         conv_u95ci)
+conversion_df
+
+# summary of conversion rates SC3 -> SC4
+conversion_df %>%
+  filter(node == "SC4") %>%
+  select(species, spawn_year, node, conv_rate, conv_l95ci, conv_u95ci) %>%
+  mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
+  mutate(spawn_year = as.factor(spawn_year)) %>%
+  ggplot(aes(x = spawn_year,
+             y = conv_rate,
+             fill = species)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(aes(ymin = conv_l95ci, ymax = conv_u95ci),
+                position = position_dodge(width = 0.9),
+                width = 0.1) +
+  theme_classic() +
+  labs(x = "Spawn Year",
+       y = "Conversion Rate (%)",
+       fill = "Species",
+       title = "Conversion Rate SC3 -> SC4")
 
 # --------------------------
-# prepare data for analysis
+# Data Prep for Further Analysis
 
 # detection by tag in wide format
-comp_filter_wide = comp_filter %>%
-  # reset slots to start at 1
-  # group_by(tag_code) %>%
-  # mutate(slot = 1:n()) %>%
-  # ungroup() %>%
+comp_df_wide = comp_df %>%
   select(species,
          spawn_year,
          tag_code,
          node,
          min_det,
          travel_time) %>%
-  # for instances where a tag has two detections at a single site, get first detection
+  # for instances where a tag has two compressed, get first detection
   group_by(species, spawn_year, tag_code, node) %>%
   slice(which.min(min_det)) %>%
   # need to convert datetime columns to character before pivot_wider
@@ -153,18 +178,29 @@ comp_filter_wide = comp_filter %>%
               values_from = c(min_det, travel_time)) %>%
   ungroup()
 
-# prepare data frame for analysis  
-sf_df = rbind(sy2022_chnk_ch,
-              sy2023_chnk_ch,
-              sy2022_sthd_ch,
-              sy2023_sthd_ch) %>%
+# load relevant LGTrappingDB data
+load(here("data/derived_data/LGTrappingDB/sf_clearwater_lgtrappingdb.rda"))
+
+# environmental data from the SC4 probe
+sc4_daily_depth = iptds_env_df %>%
+  filter(reader.site.slug == "SC4",
+         parameter.slug == "water_level") %>%
+  mutate(value = as.numeric(value),
+         date = date(read_at)) %>%
+  group_by(reader.site.slug,
+           parameter.slug,
+           date) %>%
+  summarise(mean = round(mean(value), 2)) %>%
+  ungroup()
+
+sf_df = ch_df %>%
   select(species, spawn_year, tag_code, cap_hist) %>%
-  left_join(comp_filter_wide) %>%
-  # attach some useful information from LGRTrappindDB
+  left_join(comp_df_wide) %>%
+  # attach some useful data from LGTrappingDB
   left_join(sf_lgr_df %>%
               select(-spawn_year)) %>%
   # attach some useful mark and release information from DART
-  left_join(sf_dart_obs %>%
+  left_join(dart_obs_df %>%
               select(tag_id,
                      mark_site,
                      mark_date,
@@ -174,10 +210,10 @@ sf_df = rbind(sy2022_chnk_ch,
             by = c("tag_code" = "tag_id")) %>%
   # join water level data from the SC4 probe, using date when fish was last detected at SC1, SC2, or SC3
   mutate(tmp = date(pmax(min_det_SC1, min_det_SC2, min_det_SC3, na.rm = T))) %>%
-  left_join(sc4_env %>%
-              filter(metric == "water_level") %>%
+  left_join(sc4_daily_depth %>%
+              filter(reader.site.slug == "SC4") %>%
               select(date,
-                     sc4_water_level_m = mean),
+                     sc4_avg_daily_depth_m = mean),
             by = c("tmp" = "date")) %>%
   # join water level data from stites usgs gage 13338500
   left_join(sf_stites_daily_cfs %>%
@@ -196,259 +232,34 @@ sf_df = rbind(sy2022_chnk_ch,
          success,
          everything())
 
-#------------------
-# passage by length
-bins = seq(floor(min(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
-           ceiling(max(sf_df$lgr_fl_mm, na.rm = T) / 50) * 50,
-           by = 50)
-bin_labels = c("350-400",
-               "400-450",
-               "450-500",
-               "500-550",
-               "550-600",
-               "600-650",
-               "650-700",
-               "700-750",
-               "750-800",
-               "800-850",
-               "850-900",
-               "900-950",
-               "950-1000")
+# --------------------------
+# Release Groups
 
-pass_by_fl = sf_df %>%
+# query MRR sites
+mrr_df = queryMRRMeta()
+
+rg_df = sf_df %>%
   select(species,
          spawn_year,
          tag_code,
-         pass_sc3,
-         success,
-         lgr_fl_mm) %>%
-  filter(!is.na(lgr_fl_mm)) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  mutate(fl_bin = cut(lgr_fl_mm,
-                      breaks = bins,
-                      labels = bin_labels)) %>%
-  group_by(species, fl_bin) %>%
-  summarize(n_tags = n(),
-            success = sum(success)) %>%
-  mutate(conv_rate = success / n_tags)
-pass_by_fl
-
-#------------------
-# passage by saltwater age
-pass_by_sw_age = sf_df %>%
-  select(species,
-         spawn_year,
-         tag_code,
-         pass_sc3,
-         success,
-         bio_scale_final_age) %>%
-  # convert scale age to saltwater age
-  mutate(sw_age = gsub(".*:","", bio_scale_final_age)) %>%
-  mutate(sw_age = case_when(
-    sw_age == "A" ~ NA,
-    TRUE ~ sw_age)) %>%
-  filter(!is.na(sw_age)) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  group_by(species, sw_age) %>%
-  summarize(n_tags = n(),
-            success = sum(success)) %>%
-  mutate(conv_rate = success / n_tags)
-
-#------------------
-# fork length by age
-fl_by_age = sf_df %>%
-  select(species,
-         lgr_fl_mm,
-         bio_scale_final_age) %>%
-  filter(!is.na(lgr_fl_mm), !is.na(bio_scale_final_age)) %>%
-  mutate(sw_age = gsub(".*:","", bio_scale_final_age)) %>%
-  mutate(sw_age = case_when(
-    sw_age == "A" ~ NA,
-    TRUE ~ sw_age)) %>%
-  filter(!is.na(sw_age)) %>%
-  ggplot(aes(x = sw_age,
-             y = lgr_fl_mm)) +
-  geom_boxplot() +
-  theme_classic() +
-  labs(x = "Saltwater Age",
-       y = "FL (mm)") +
-  facet_wrap(~species)
-
-#------------------
-# fork length by successful passage
-fl_by_success = sf_df %>%
-  select(species,
-         tag_code,
-         lgr_fl_mm,
-         pass_sc3,
-         success) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  filter(!is.na(lgr_fl_mm)) %>%
-  ggplot(aes(x = success,
-             y = lgr_fl_mm)) +
-  geom_boxplot() +
-  theme_classic() +
-  labs(x = "Successful Passage to SC4",
-       y = "FL (mm)") +
-  facet_wrap(~species)
-
-#------------------
-# passage by SC4 water level
-pass_by_wl = sf_df %>%
-  select(species,
-         spawn_year,
-         tag_code,
-         pass_sc3,
-         success,
-         sc4_water_level_m) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  filter(!is.na(sc4_water_level_m))
-
-wl_bins = seq(floor(min(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,
-              ceiling(max(pass_by_wl$sc4_water_level_m, na.rm = T) / 0.2) * 0.2,
-              by = 0.2)
-wl_bin_labels = c("0.2-0.4",
-                  "0.4-0.6",
-                  "0.6-0.8",
-                  "0.8-1.0",
-                  "1.0-1.2",
-                  "1.2-1.4",
-                  "1.4-1.6") 
-
-pass_by_wl2 = pass_by_wl %>%
-  mutate(wl_bin = cut(sc4_water_level_m,
-                      breaks = wl_bins,
-                      labels = wl_bin_labels)) %>%
-  group_by(species, wl_bin) %>%
-  summarize(n_tags = n(),
-            success = sum(success)) %>%
-  mutate(conv_rate = success / n_tags)
-  
-#------------------
-# water level by successful passage
-wl_by_success = sf_df %>%
-  select(species,
-         tag_code,
-         sc4_water_level_m,
-         pass_sc3,
-         success) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  filter(!is.na(sc4_water_level_m)) %>%
-  ggplot(aes(x = success,
-             y = sc4_water_level_m)) +
-  geom_boxplot() +
-  theme_classic() +
-  labs(x = "Successful Passage to SC4",
-       y = "Water Level (m) at SC4") +
-  facet_wrap(~species)
-wl_by_success
-
-#------------------
-# passage by Stites discharge
-cfs_bins = seq(
-  floor(min(sf_df$daily_mean_cfs, na.rm = T) / 1000) * 1000,
-  ceiling(max(sf_df$daily_mean_cfs, na.rm = T) / 1000) * 1000,
-  by = 1000)
-tmp = paste0(cfs_bins, "-", lead(cfs_bins))
-cfs_bin_labels = tmp[1:(length(tmp) - 1)]
-  
-pass_by_cfs = sf_df %>%
-  select(species,
-         tag_code,
-         daily_mean_cfs,
-         pass_sc3,
-         success) %>%
-  # get only fish that at least arrived at SC3
-  filter(pass_sc3 == T | success == T) %>%
-  filter(!is.na(daily_mean_cfs)) %>%
-  mutate(cfs_bin = cut(daily_mean_cfs,
-                       breaks = cfs_bins,
-                       labels = cfs_bin_labels)) %>%
-  group_by(species, cfs_bin) %>%
-  summarize(n_tags = n(),
-            success = sum(success)) %>%
-  mutate(conv_rate = success / n_tags)
-
-#------------------
-# passage by release group
-library(janitor)
-tabyl(sf_df$rel_site)
-
-pass_by_rg = sf_df %>%
-  select(species,
-         spawn_year,
-         tag_code,
-         pass_sc3,
-         success,
          rel_site) %>%
-  mutate(rel_group = case_when(
-    rel_site == "CLWRSF" ~ "South Fork Clearwater River",
-    rel_site == "MEAD2C" ~ "Meadow Creek",
-    rel_site == "NEWSOC" ~ "Newsome Creek",
-    TRUE ~ "Other")) %>%
-  group_by(species, rel_group) %>%
-  summarize(n_tags = n(),
-            success = sum(success)) %>%
-  mutate(conv_rate = success / n_tags) 
-  
-#------------------
-# simple logistic regression
-# fl_rg_data = sf_df %>%
-#   filter(!rel_site %in% c("CLEARC", "PRDLD1"),
-#          !is.na(lgr_fl_mm)) %>%
-#   mutate(rel_group = case_when(
-#     rel_site == "BONAFF" ~ "Unknown Release",
-#     rel_site == "CLWRSF" ~ "South Fork Clearwater River",
-#     rel_site == "COLR2"  ~ "Unknown Release",
-#     rel_site == "LGRLDR" ~ "Unknown Release",
-#     rel_site == "LGRRBR" ~ "Unknown Release",
-#     rel_site == "LGRRRR" ~ "Unknown Release",
-#     rel_site == "MEAD2C" ~ "Meadow Creek",
-#     rel_site == "NEWSOC" ~ "Newsome Creek",
-#     TRUE ~ rel_site)) %>%
-#   mutate(pass_SC4 = if_else(pass_SC4 == T, 1, 0)) %>%
-#   select(tag_code,
-#          lgr_fl_mm,
-#          pass_SC4,
-#          rel_group)
-# 
-# # fit the logistic regression model
-# model = glm(pass_SC4 ~ lgr_fl_mm + rel_group, data = fl_rg_data, family = binomial())
-# 
-# # create a sequence of x values for prediction
-# x_pred = seq(min(fl_rg_data$lgr_fl_mm), max(fl_rg_data$lgr_fl_mm), length.out = 1000)
-# 
-# # create a data frame for prediction including groups
-# pred_data = expand.grid(x = x_pred, group = unique(fl_rg_data$rel_group)) %>%
-#   rename(lgr_fl_mm = x,
-#          rel_group = group)
-# 
-# # predict the probabilities using the logistic regression model
-# pred_probs = predict(model, newdata = pred_data, type = "response")
-# 
-# # combine the predicted data with the original data
-# plot_data = cbind(pred_data, pred_prob = pred_probs)
-# 
-# # Plot the logistic regression curve and data points
-# lr_p = ggplot() +
-#   geom_point(aes(x = lgr_fl_mm,
-#                  y = pass_SC4,
-#                  color = rel_group),
-#              data = fl_rg_data) +
-#   geom_line(aes(x = lgr_fl_mm,
-#                 y = pred_prob,
-#                 color = rel_group),
-#             data = plot_data,
-#             linewidth = 0.5) +
-#   labs(x = "FL (mm)",
-#        y = "p(Successful Pass)",
-#        color = "Release Group") +
-#   theme_minimal()
-# lr_p
-# 
-# # END SCRIPT
+  left_join(mrr_df %>% 
+              select(siteCode,
+                     type,
+                     rkm),
+            by = c("rel_site" = "siteCode")) %>%
+  mutate(release_location = case_when(
+    rel_site == "NEWSOC" ~ "NEWSOC",
+    type == "IntraDamReleaseSite" ~ "Unknown",
+    TRUE ~ "Downstream")) %>%
+  group_by(species, spawn_year, release_location) %>%
+  summarise(n_tags = n(),
+            .groups = "drop") %>%
+  filter(release_location != "Unknown") %>%
+  pivot_wider(names_from = release_location,
+              values_from = n_tags,
+              values_fill = 0)
+rg_df
+
+
+### END SCRIPT
