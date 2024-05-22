@@ -1,9 +1,11 @@
-# Purpose: Gather data related to the SF Clearwater potential velocity barrier
+# Purpose: Gather data for SF Clearwater related to:
+#   1. the potential velocity barrier evaluation,
+#   2. run-timing.
 # 
 # Authors: Mike Ackerman and Ryan N. Kinzer 
 # 
 # Created: May 31, 2023
-#   Last Modified: January 23, 2024
+#   Last Modified: May 22, 2024
 
 # clear environment
 rm(list = ls())
@@ -17,7 +19,7 @@ library(magrittr)
 #---------------------
 # gather PIT-tag data
 
-# get side configuration info from PTAGIS
+# get site configuration info from PTAGIS
 # config = buildConfig(node_assign = "site")
 # save(config, file = here("data/derived_data/config.rda"))
 load(here("data/derived_data/config.rda"))
@@ -31,6 +33,56 @@ sf_sites = c("SC1",  # rkm 1; These rkms are from PTAGIS and I don't know their 
 
 sf_config = config %>%
   filter(node %in% c("GRA", sf_sites))
+
+# function to query DART observations for a given species and year for adults observed at LGR and within SF Clearwater
+queryObsDART_spc_yr = function(spc, yr) {
+  dart_df = queryObsDART(species = spc,
+               loc = "GRA",
+               spawn_year = yr) %>%
+    # trim to adults observed in SF Clearwater
+    group_by(tag_id) %>%
+    filter(any(obs_site %in% sf_sites)) %>%
+    mutate(species = spc,
+           spawn_year = yr)
+  
+  print(paste0("Observations for ", spc, " adults in spawn year ", yr, " downloaded from DART."))
+  return(dart_df)
+}
+
+# set species and years
+species = c("Chinook", "Steelhead")
+years = 2012:2024
+
+# SKIP UNLESS DATA NEEDS TO BE UPDATED: get all Chinook & steelhead observations from DART for adults at 
+# GRA and upstream (includes newly and previously tagged fish)
+
+sy = crossing(species, years)
+dart_obs_list = map2(sy$species, sy$years, queryObsDART_spc_yr)
+names(dart_obs_list) = paste0(sy$species, "_", sy$years)
+save(dart_obs_list, file = here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+# glimpse(dart_obs_list[["Steelhead_2024"]]) # view a single spc, yr result
+
+# load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
+load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+dart_obs_df = data.table::rbindlist(dart_obs_list)
+
+# write out tag lists for each species and spawn year
+for( spc in species ) {
+  # set species code
+  if(spc == "Chinook")   { spc_code = "chnk" }
+  if(spc == "Steelhead") { spc_code = "sthd" }
+  for ( yr in years ) {
+    tag_list = dart_obs_df %>%
+      filter(species == spc,
+             spawn_year == yr) %>%
+      select(tag_id) %>%
+      distinct() %>%
+      pull() %>%
+      write_lines(paste0(here("output/tag_lists"), "/", spc_code, "_sy", yr, "_tag_list.txt"))
+  } # end years loop
+} # end species loop
+
+# now query CTHs for tags in PTAGIS
 
 # get all observations from DART for adults at GRA and upstream (includes newly and previously tagged fish)
 # chinook, sy2022
