@@ -3,7 +3,7 @@
 # Authors: Mike Ackerman
 # 
 # Created: July 5, 2023
-#   Modified:
+#   Modified: May 22, 2024
 
 # clear environment
 rm(list = ls())
@@ -11,6 +11,59 @@ rm(list = ls())
 # load necessary packages
 library(tidyverse)
 library(here)
+library(PITcleanr)
+
+#---------------------
+# Compile Relevant Data
+
+# load compressed and filtered PITcleanr observations
+load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+
+#---------------------
+# Site Detection Efficiencies
+
+comp_df = bind_rows(comp_list) %>%
+  filter(spawn_year %in% 2022:2024)
+
+# build site order
+sf_site_order = buildNodeOrder(parent_child)
+
+# Function to estimate node efficiencies for a given species and year
+estNodeEff_sy = function(spc, yr) {
+  # filter data down to species and year
+  obs_df = comp_df %>%
+    filter(species == spc,
+           spawn_year == yr)
+  
+  # estimate node efficiencies for given species and spawn year
+  est_df = estNodeEff(capHist_proc = obs_df,
+                      node_order = sf_site_order) %>%
+    mutate(species = spc,
+           spawn_year = yr) %>%
+    select(species, 
+           spawn_year,
+           everything())
+  
+  print(paste0("Estimated node efficiencies for ", spc, " in spawn year ", yr))
+  return(est_df)
+}
+
+# Estimate node efficiencies across species and spawn years
+sy = crossing(species = comp_df$species, years = comp_df$spawn_year) %>%
+  # incomplete data for SY2024 Chinook
+  filter(!(species == "Chinook" & years == 2024))
+node_est_list = map2(sy$species, sy$years, estNodeEff_sy)
+names(node_est_list) = paste0(sy$species, "_", sy$years)
+node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
+
+# write results
+write_csv(node_est_df,
+          file = paste0(here(), "/output/detection_probs/sf_clearwater_site_efficiencies.csv"))
+
+#---------------------
+# Site Detection Efficiencies
+
+
 
 # --------------------------
 # load some data

@@ -135,7 +135,7 @@ names(comp_list) = paste0(sy$species, "_", sy$years)
 glimpse(comp_list[["Steelhead_2024"]])
 
 # save compressed and filtered cths
-save(comp_list, file = here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+save(comp_list, parent_child, file = here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
 
 #------------------------
 # IPTDS Environmental Probe Data
@@ -228,169 +228,81 @@ save(sf_elk_gage_info,
 
 ### END SCRIPT
 
-# MUCH OF THE BELOW SHOULD BE MOVED TO ANALYSIS SCRIPTS
-# merge compressed CTHs
-# comp_filter = bind_rows(sy2022_chnk_filter,
-#                         sy2023_chnk_filter,
-#                         sy2022_sthd_filter,
-#                         sy2023_sthd_filter)
-# 
-# # write comp_filter
-# write_csv(comp_filter,
-#           file = "data/derived_data/sf_clearwater_filtered_detections.csv")
-# 
-# # estimate site efficiencies
-# sy2022_chnk_site_eff = estNodeEff(capHist_proc = sy2022_chnk_filter,
-#                                   node_order = sf_site_order) %>%
-#   mutate(species = "Chinook",
-#          spawn_year = 2022) %>%
-#   select(species,
-#          spawn_year,
-#          everything())
-# 
-# sy2023_chnk_site_eff = estNodeEff(capHist_proc = sy2023_chnk_filter,
-#                                   node_order = sf_site_order) %>%
-#   mutate(species = "Chinook",
-#          spawn_year = 2023) %>%
-#   select(species,
-#          spawn_year,
-#          everything())
-# 
-# sy2022_sthd_site_eff = estNodeEff(capHist_proc = sy2022_sthd_filter,
-#                                   node_order = sf_site_order) %>%
-#   mutate(species = "Steelhead",
-#          spawn_year = 2022) %>%
-#   select(species,
-#          spawn_year,
-#          everything())
-# 
-# sy2023_sthd_site_eff = estNodeEff(capHist_proc = sy2023_sthd_filter,
-#                                   node_order = sf_site_order) %>%
-#   mutate(species = "Steelhead",
-#          spawn_year = 2023) %>%
-#   select(species,
-#          spawn_year,
-#          everything())
-# 
-# # bind node efficiencies
-# site_eff = rbind(sy2022_sthd_site_eff,
-#                  sy2023_sthd_site_eff,
-#                  sy2022_chnk_site_eff,
-#                  sy2023_chnk_site_eff)
-# 
-# # write node efficiencies
-# write_csv(site_eff,
-#           file = paste0(here(), "/data/derived_data/sf_clearwater_site_efficiencies.csv"))
-# 
-# # convert filtered cths into capture histories
-# sy2022_chnk_ch = buildCapHist(filter_ch = sy2022_chnk_filter,
-#                               parent_child = parent_child,
-#                               configuration = config,
-#                               keep_cols = c("tag_code",
-#                                             "species",
-#                                             "spawn_year")) %>%
-#   mutate(species = "Chinook",
-#          spawn_year = 2022)
-# 
-# sy2023_chnk_ch = buildCapHist(filter_ch = sy2023_chnk_filter,
-#                               parent_child = parent_child,
-#                               configuration = config,
-#                               keep_cols = c("tag_code",
-#                                             "species",
-#                                             "spawn_year")) %>%
-#   mutate(species = "Chinook",
-#          spawn_year = 2023)
-# 
-# sy2022_sthd_ch = buildCapHist(filter_ch = sy2022_sthd_filter,
-#                               parent_child = parent_child,
-#                               configuration = config,
-#                               keep_cols = c("tag_code",
-#                                             "species",
-#                                             "spawn_year")) %>%
-#   mutate(species = "Steelhead",
-#          spawn_year = 2022)
-# 
-# sy2023_sthd_ch = buildCapHist(filter_ch = sy2023_sthd_filter,
-#                               parent_child = parent_child,
-#                               configuration = config,
-#                               keep_cols = c("tag_code",
-#                                             "species",
-#                                             "spawn_year")) %>%
-#   mutate(species = "Steelhead",
-#          spawn_year = 2023)
-# 
-# # define the capture history columns
-# ch_cols = defineCapHistCols(parent_child = parent_child,
-#                             configuration = config,
-#                             use_rkm = TRUE)
-# 
-# # get some biological data from LGR
-# trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2023-11-20.csv")
-# sf_lgr_df = comp_filter %>%
-#   select(species,
-#          spawn_year,
-#          tag_code) %>%
-#   distinct() %>%
-#   # there is one repeat spawner; ignore for now
-#   #group_by(tag_code) %>%
-#   #mutate(count = n()) %>%
-#   #filter(count > 1)
-#   left_join(trap_df,
-#             by = c("tag_code" = "LGDNumPIT")) %>%
-#   select(tag_code,
-#          spawn_year = SpawnYear,
-#          lgr_collection_date = CollectionDate,
-#          srr = SRR,
-#          lgr_fl_mm = LGDFLmm,
-#          gen_sex = GenSex,
-#          pbt_by_hat = GenPBT_ByHat,
-#          pbt_rel_group = GenPBT_RGroup,
-#          bio_scale_final_age = BioScaleFinalAge,
-#          lgd_mark_ad = LGDMarkAD)
-# 
-# # write out objects for analysis
-# save(sf_lgr_df,
-#      sf_dart_obs,
-#      comp_filter,
-#      site_eff,
-#      sy2022_chnk_ch,
-#      sy2023_chnk_ch,
-#      sy2022_sthd_ch,
-#      sy2023_sthd_ch,
-#      ch_cols,
-#      file = here("data/derived_data/sf_clearwater_passage_data.rda"))
-# 
-# #------------------------
-# # gather stream gage data
-# 
-# # load necessary libraries
-# #library(remotes)
-# # install_github("DOI-USGS/dataRetrieval",
-# #                build_vignettes = TRUE, 
-# #                build_opts = c("--no-resave-data",
-# #                               "--no-manual"))
-# library(dataRetrieval)
-# 
-# # query stream gage data
-# sf_elk_gage_info = readNWISsite(13337500)                    # sf clearwater river nr Elk City, ID
-# sf_elk_daily_cfs = readNWISdv(siteNumbers = 13337500,        
-#                               parameterCd = "00060",    # mean daily cfs
-#                               startDate = "2021-07-01", 
-#                               endDate = "2023-12-31") %>%
-#   rename(daily_mean_cfs = X_00060_00003)
-# # Unfortunately, data is only available for the site through 10/17/2021
-# 
-# sf_stites_gage_info = readNWISsite(13338500)                 # sf clearwater river nr Stites, ID
-# sf_stites_daily_cfs = readNWISdv(siteNumbers = 13338500,        
-#                                 parameterCd = "00060",    # mean daily cfs
-#                                 startDate = "2021-07-01", 
-#                                 endDate = "2023-12-31") %>%
-#   rename(daily_mean_cfs = X_00060_00003)
-#  
-# # write out stream gage data for analysis
-# save(sf_elk_gage_info,
-#      sf_elk_daily_cfs,
-#      sf_stites_gage_info,
-#      sf_stites_daily_cfs,
-#      file = here("data/derived_data/sf_clearwater_mean_daily_cfs.rda"))
 
+# convert filtered cths into capture histories
+sy2022_chnk_ch = buildCapHist(filter_ch = sy2022_chnk_filter,
+                              parent_child = parent_child,
+                              configuration = config,
+                              keep_cols = c("tag_code",
+                                            "species",
+                                            "spawn_year")) %>%
+  mutate(species = "Chinook",
+         spawn_year = 2022)
+
+sy2023_chnk_ch = buildCapHist(filter_ch = sy2023_chnk_filter,
+                              parent_child = parent_child,
+                              configuration = config,
+                              keep_cols = c("tag_code",
+                                            "species",
+                                            "spawn_year")) %>%
+  mutate(species = "Chinook",
+         spawn_year = 2023)
+
+sy2022_sthd_ch = buildCapHist(filter_ch = sy2022_sthd_filter,
+                              parent_child = parent_child,
+                              configuration = config,
+                              keep_cols = c("tag_code",
+                                            "species",
+                                            "spawn_year")) %>%
+  mutate(species = "Steelhead",
+         spawn_year = 2022)
+
+sy2023_sthd_ch = buildCapHist(filter_ch = sy2023_sthd_filter,
+                              parent_child = parent_child,
+                              configuration = config,
+                              keep_cols = c("tag_code",
+                                            "species",
+                                            "spawn_year")) %>%
+  mutate(species = "Steelhead",
+         spawn_year = 2023)
+
+# define the capture history columns
+ch_cols = defineCapHistCols(parent_child = parent_child,
+                            configuration = config,
+                            use_rkm = TRUE)
+
+# get some biological data from LGR
+trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2023-11-20.csv")
+sf_lgr_df = comp_filter %>%
+  select(species,
+         spawn_year,
+         tag_code) %>%
+  distinct() %>%
+  # there is one repeat spawner; ignore for now
+  #group_by(tag_code) %>%
+  #mutate(count = n()) %>%
+  #filter(count > 1)
+  left_join(trap_df,
+            by = c("tag_code" = "LGDNumPIT")) %>%
+  select(tag_code,
+         spawn_year = SpawnYear,
+         lgr_collection_date = CollectionDate,
+         srr = SRR,
+         lgr_fl_mm = LGDFLmm,
+         gen_sex = GenSex,
+         pbt_by_hat = GenPBT_ByHat,
+         pbt_rel_group = GenPBT_RGroup,
+         bio_scale_final_age = BioScaleFinalAge,
+         lgd_mark_ad = LGDMarkAD)
+
+# write out objects for analysis
+save(sf_lgr_df,
+     sf_dart_obs,
+     comp_filter,
+     site_eff,
+     sy2022_chnk_ch,
+     sy2023_chnk_ch,
+     sy2022_sthd_ch,
+     sy2023_sthd_ch,
+     ch_cols,
+     file = here("data/derived_data/sf_clearwater_passage_data.rda"))
