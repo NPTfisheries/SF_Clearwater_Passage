@@ -63,36 +63,61 @@ write_csv(node_est_df,
 #---------------------
 # Site Detection Efficiencies
 
+# load configuration file
+load(here("data/derived_data/config.rda"))
 
+# Function to convert cths into capture histories for a given species and year
+buildCapHist_sy = function(spc, yr) {
+  # filter data down to species and year
+  obs_df = comp_df %>%
+    filter(species == spc,
+           spawn_year == yr)
+  
+  ch_df = buildCapHist(filter_ch = obs_df,
+                       parent_child = parent_child,
+                       configuration = config,
+                       keep_cols = c("tag_code")) %>%
+    mutate(species = spc,
+           spawn_year = yr)
+  
+  print(paste0("Created capture histories for ", spc, " in spawn year ", yr))
+  return(ch_df)
+}
+
+# Create capture histories for each species and spawn year
+ch_list = map2(sy$species, sy$years, buildCapHist_sy)
+names(ch_list) = paste0(sy$species, "_", sy$years)
+ch_df = bind_rows(ch_list)
+
+# define the capture history columns
+ch_cols = defineCapHistCols(parent_child = parent_child,
+                            configuration = config,
+                            use_rkm = TRUE)
+
+# save capture histories
+save(ch_df,
+     ch_cols,
+     file = here("output/capture_histories/sy22-24_capture_histories.rda"))
 
 # --------------------------
-# load some data
-load(here("data/derived_data/sf_clearwater_passage_data.rda"))
-load(here("data/derived_data/sf_clearwater_mean_daily_cfs.rda")) ; rm(sf_elk_daily_cfs, sf_elk_gage_info, sf_stites_gage_info)
+# Conversion Rates
 
-# environmental data from the SC4 probe
-sc4_env = read_csv(here("data/raw_data/SC4_enviro_5f1ff362-1201-4136-a630-0ba05c141177.csv")) %>%
-  rename(node = slug...1,
-         metric = slug...2) %>%
-  mutate(date = date(read_at)) %>%
-  group_by(node, metric, date) %>%
-  summarise(mean = round(mean(value), 2)) %>%
-  ungroup()
-
-# simple conversion rates
-conv_rate_df = site_eff %>%
+# calculate conversion rates with standard error
+conversion_df = node_est_df %>%
   group_by(species, spawn_year) %>%
-  mutate(conv_rate_pct = round(est_tags_at_node / lag(est_tags_at_node) * 100, 1)) %>%
+  mutate(conv_rate = est_tags_at_node / lag(est_tags_at_node),
+         conv_rate_se = sqrt((1 / est_tags_at_node) + (1 / lag(est_tags_at_node)))) %>%
   ungroup() %>%
-  mutate(eff_est = round(eff_est * 100, 1)) %>%
-  select(Species = species,
-         `Spawn Year` = spawn_year,
-         Site = node,
-         `Obs Tags at Node` = tags_at_node,
-         `Detection Efficiency` = eff_est,
-         `Est Tags at Node` = est_tags_at_node,
-         `Conversion Rate (%)` = conv_rate_pct)
-
+  select(species,
+         spawn_year,
+         node,
+         obs_tags_at_node = tags_at_node,
+         eff_est,
+         eff_se,
+         est_tags_at_node,
+         conv_rate,
+         conv_rate_se)
+  
 # river kilometers
 site_rkms = tribble(~"site", ~"rkm",
                     "SC1", 1,
