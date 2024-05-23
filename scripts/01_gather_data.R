@@ -231,8 +231,8 @@ for(s in env_sites) {
 #                               "--no-manual"))
 library(dataRetrieval)
 
-# set start and end dates for data retrieval
-start_dt = "2021-07-01"
+# set start and end dates for data retrieval (elk city gage started in August 2002)
+start_dt = "2003-01-01"
 end_dt   = "2024-12-31"
 
 # query stream gage data
