@@ -1,0 +1,716 @@
+---
+title: "Assessment of a Potential Velocity Barrier for Adult Steelhead Migration on the South Fork Clearwater River - Preliminary"
+author:
+- Michael W. Ackerman:
+    email: mikea@nezperce.org
+    institute: npt_mccall
+    correspondence: yes
+- Ryan N. Kinzer:
+    email: ryank@nezperce.org
+    institute: npt_mccall
+    correspondence: no
+- Peter Cleary:
+    email: peterc@nezperce.org
+    institue: npt_orofino
+    correspondence: no
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::html_document2:
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    number_sections: yes
+    pandoc_args:
+    - "--lua-filter=../templates/scholarly-metadata.lua"
+    - "--lua-filter=../templates/author-info-blocks.lua"
+    - "--lua-filter=../templates/pagebreak.lua"
+institute:
+- npt_mccall: Nez Perce Tribe, Department of Fisheries Resources Management, 14054 Burr Dr., McCall, Idaho, 83638, USA
+- npt_orofino: Nez Perce Tribe, Department of Fisheries Resources Management, 45559 Hwy 12, Orofino, Idaho, 83544, USA
+csl: "../templates/journal-of-archaeological-science.csl"
+bibliography: AckermanLibrary.bib
+always_allow_html: yes
+---
+
+<!-- the following inserts the NPT logo into header -->
+```{=html}
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"DFRM.png\" style=\"float: right;width: 150px;\"/>')
+   });
+</script>
+
+<style>
+p.caption {
+  font-size: 0.8em;
+}
+</style>
+```
+
+```{r setup, echo = FALSE, message = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  echo = FALSE,
+  comment = "#>",
+  fig.path = "../figures/",
+  dpi = 600
+)
+
+options(knitr.kable.NA = '--')
+
+```
+
+```{r load-libraries}
+# for formatting
+library(kableExtra)
+
+# for analysis
+library(tidyverse)
+library(PITcleanr)
+library(here)
+library(sf)
+library(ggplot2)
+library(janitor)
+library(readxl)
+
+```
+
+
+# Background
+
+A section of the South Fork Clearwater River near milepost (MP) 28 has been considered a potential barrier to adult steelhead migration due to high water velocities, at least during some flows. These high water velocities are hypothesized to hinder, or periodically prevent, some adult steelhead from migrating upstream of the barrier, limiting their use of available spawning habitat upstream of the high-velocity section in the mainsteam South Fork Clearwater River and its tributaries. Namely, previous work has indicated that stream velocities within the section likely impede upstream passage for adult steelhead at flows greater than approximately 1,000 cfs (~600 cfs at the previous Elk City gage) [@Timm2017; @Timm2018].
+
+This document provides a preliminary assessment of adult steelhead passage at the putative velocity barrier (hereafter barrier) based on detections of PIT-tagged adults in the South Fork Clearwater River, including at sites SC3 and SC4 located downstream and upstream of the barrier, respectively. PIT-tagged individuals include adults newly tagged at Lower Granite Dam and individuals tagged and released as juveniles at various locations including within the South Fork Clearwater River. In particular, we're interested in whether returning PIT-tagged adult observations suggest that adults passing SC3 "convert" to locations upstream of the barrier (e.g., SC4) at rates lower than expected, suggesting that the barrier hinders or prevents passage at least for some adults. Although the evaluation is focused on steelhead, we include data from PIT-tagged adult Chinook salmon for comparison.
+<!--Continue, if necessary-->
+
+```{r load-data}
+# load compressed and filtered PITcleanr observations
+load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+
+# load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
+load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+dart_obs_df = data.table::rbindlist(dart_obs_list) ; rm(dart_obs_list)
+
+# load relevant LGTrappingDB data
+load(here("data/derived_data/LGTrappingDB/sf_clearwater_lgtrappingdb.rda"))
+
+# load environmental probe data
+iptds_env_df = list.files(path = here("data/derived_data/enviro/"), pattern = "^SC.*\\.rda$", full.names = TRUE) %>%
+  map_dfr(~ {
+    get(load(.))
+  })
+
+# load stream gage data
+load(here("data/derived_data/enviro/sf_clearwater_mean_daily_cfs.rda"))
+
+```
+
+```{r prep-gage-data}
+# calculate ratios between stream gages to estimate recent elk city gage cfs
+flow_bin = 500
+flow_ratio = sf_gage_df %>%
+  select(site_no,
+         Date,
+         daily_mean_cfs) %>%
+  pivot_wider(names_from = site_no,
+              values_from = daily_mean_cfs) %>%
+  mutate(ratio = `13338500` / `13337500`,
+         bin_13338500 = floor(`13338500` / flow_bin) * flow_bin) %>%
+  group_by(bin_13338500) %>%
+  summarise(avg_ratio = mean(ratio, na.rm = T)) %>%
+  filter(!is.na(avg_ratio))
+
+# create new gage data frame which estimates cfs at elk city gage for recent years
+sf_gage_df2 = sf_gage_df %>%
+  select(site_no,
+         Date,
+         daily_mean_cfs) %>%
+  pivot_wider(names_from = site_no,
+              values_from = daily_mean_cfs) %>%
+  mutate(bin_13338500 = floor(`13338500` / flow_bin) * flow_bin) %>%
+  left_join(flow_ratio) %>%
+  mutate(`13337500` = if_else(is.na(`13337500`), `13338500` / avg_ratio, `13337500`)) %>%
+  select(-bin_13338500, -avg_ratio) %>%
+  pivot_longer(cols = c(`13337500`, `13338500`),
+               names_to = "site_no",
+               values_to = "daily_mean_cfs")
+
+```
+
+```{r prep-det-probs, include = FALSE}
+#---------------------
+# Site Detection Efficiencies
+
+comp_df = bind_rows(comp_list) %>%
+  filter(spawn_year %in% 2022:2024) ; rm(comp_list)
+
+# build site order
+sf_site_order = buildNodeOrder(parent_child)
+
+# Function to estimate node efficiencies for a given species and year
+estNodeEff_sy = function(spc, yr) {
+  # filter data down to species and year
+  obs_df = comp_df %>%
+    filter(species == spc,
+           spawn_year == yr)
+  
+  # estimate node efficiencies for given species and spawn year
+  est_df = estNodeEff(capHist_proc = obs_df,
+                      node_order = sf_site_order) %>%
+    mutate(species = spc,
+           spawn_year = yr) %>%
+    select(species, 
+           spawn_year,
+           everything())
+  
+  print(paste0("Estimated node efficiencies for ", spc, " in spawn year ", yr))
+  return(est_df)
+}
+
+# Estimate node efficiencies across species and spawn years
+sy = crossing(species = comp_df$species, years = comp_df$spawn_year) %>%
+  # incomplete data for SY2024 Chinook
+  filter(!(species == "Chinook" & years == 2024))
+node_est_list = map2(sy$species, sy$years, estNodeEff_sy)
+names(node_est_list) = paste0(sy$species, "_", sy$years)
+node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
+
+```
+
+```{r prep-cap-hists, include = FALSE}
+#---------------------
+# Build Capture Histories
+
+# load configuration file
+load(here("data/derived_data/config.rda"))
+
+# Function to convert cths into capture histories for a given species and year
+buildCapHist_sy = function(spc, yr) {
+  # filter data down to species and year
+  obs_df = comp_df %>%
+    filter(species == spc,
+           spawn_year == yr)
+  
+  ch_df = buildCapHist(filter_ch = obs_df,
+                       parent_child = parent_child,
+                       configuration = config,
+                       keep_cols = c("tag_code")) %>%
+    mutate(species = spc,
+           spawn_year = yr)
+  
+  print(paste0("Created capture histories for ", spc, " in spawn year ", yr))
+  return(ch_df)
+}
+
+# Create capture histories for each species and spawn year
+ch_list = map2(sy$species, sy$years, buildCapHist_sy)
+names(ch_list) = paste0(sy$species, "_", sy$years)
+ch_df = bind_rows(ch_list) ; rm(ch_list)
+
+# define the capture history columns
+ch_cols = defineCapHistCols(parent_child = parent_child,
+                            configuration = config,
+                            use_rkm = TRUE)
+
+```
+
+## Study area
+
+The section of river considered to be a potential velocity barrier is located on river kilometer (rkm) 71 of the South Fork Clearwater River (Figure \@ref(fig:study-map)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) show each of the instream PIT tag detection sites (IPTDS) used in the evaluation which detect tagged adult steelhead and Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River.
+
+```{r study-map, message = F, fig.cap = "Map of the study area including the locations of each instream PIT tag detection system and the approximate location of the potential velocity barrier shown in red."}
+# sites of interest
+sf_sites = c("SC1",  # rkm 1
+             "SC2",  # rkm 2   
+             "SC3",  # rkm 60
+             "SC4",  # rkm 81
+             "CRA")  # rkm 94 (from SF Clearwater mouth)
+
+# sf of sites of interest
+sf_sites_sf = config %>%
+  filter(site_code %in% sf_sites) %>%
+  select(site_code, rkm, rkm_total, latitude, longitude) %>%
+  distinct() %>%
+  st_as_sf(coords = c("longitude", 
+                      "latitude"), 
+           crs = 4326)
+
+# download subset of NHDPlus flowlines
+# nhd_list = queryFlowlines(sites_sf = sf_sites_sf,
+#                           root_site_code = "SC1",
+#                           min_strm_order = 3,
+#                           dwnstrm_sites = F)
+# save(nhd_list, file = here("data/derived_data/spatial/sf_flowlines.rda"))
+load(here("data/derived_data/spatial/sf_flowlines.rda"))
+
+# velocity barrier
+barrier_pt = tribble(~site, ~latitude, ~longitude,
+                     "Velocity Barrier", 45.797042, -115.782912) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+# create map
+sf_map = ggplot() +
+  # flowlines
+  geom_sf(data = nhd_list$flowlines,
+          aes(color = as.factor(StreamOrde),
+              size = StreamOrde)) +
+  scale_color_viridis_d(direction = -1,
+                        option = "D",
+                        name = "Stream\nOrder",
+                        end = 0.8) +
+  scale_size_continuous(range = c(0.2, 1.2),
+                        guide = 'none') +
+  # basin outline
+  geom_sf(data = nhd_list$basin,
+          fill = NA,
+          lwd = 2) +
+  # add sites with labels
+  geom_sf(data = sf_sites_sf,
+          size = 3,
+          color = "black") +
+  ggrepel::geom_label_repel(
+    data = sf_sites_sf,
+    aes(label = site_code, 
+        geometry = geometry),
+    size = 3,
+    stat = "sf_coordinates",
+    min.segment.length = 0,
+    max.overlaps = 50) +
+  # velocity barrier point
+  geom_sf(data = barrier_pt,
+          size = 4,
+          color = "red") +
+  theme_bw() +
+  theme(axis.title = element_blank())
+sf_map
+
+```
+
+```{r sites-table}
+sf_sites_tbl = config %>%
+  filter(site_code %in% sf_sites) %>%
+  select(site_code,
+         site_name,
+         rkm,
+         latitude,
+         longitude) %>%
+  distinct() %>%
+  mutate(rkm = c(94, 1, 2, 60, 81)) %>%
+  arrange(rkm) %>%
+  rename(
+    Site = site_code,
+    Name = site_name,
+    Latitude = latitude,
+    Longitude = longitude
+  ) %>%
+  kable(booktabs = T,
+        align = "clccc",
+        caption = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, river kilometer (rkm) from the mouth of the SF Clearwater River, and location.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+sf_sites_tbl
+
+```
+
+# Evaluation
+
+## Data
+
+Our evaluation used information from PIT-tagged adult steelhead and Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. We queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam in returning adult steelhead and Chinook salmon, during spawn years 2022 and 2023, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any PIT-tagged adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater River and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information and any subsequent observations. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` functions in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for Chinook salmon after September 15 to avoid detections of any kelts (steelhead only), shed tags, etc. The compressed and filtered detections for steelhead and Chinook salmon for spawn years 2022 and 2023 are available for download [here](https://github.com/NPTfisheries/SF_Clearwater_Passage/blob/main/data/derived_data/sf_clearwater_filtered_detections.csv). The filtered detections were also converted to capture histories using the `buildCapHist()` function in `PITcleanr`. Finally, biological (e.g., sex, length) and origin (e.g., natural- versus hatchery-origin) information for each tag were pulled from the Lower Granite Dam trapping database (LGTrappingDB). All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
+
+## Conversion Rates
+
+Text...
+
+```{r conv-rates}
+# calculate conversion rates with standard error
+conversion_df = node_est_df %>%
+  group_by(species, spawn_year) %>%
+  mutate(conv_rate = pmin(est_tags_at_node / lag(est_tags_at_node), 1),
+         conv_rate_se = sqrt((1 / est_tags_at_node) + (1 / lag(est_tags_at_node))),
+         # 90% CI; change to 1.96 for 95% CI
+         conv_l90ci = pmax(conv_rate - 1.645 * conv_rate_se, 0),
+         conv_u90ci = pmin(conv_rate + 1.645 * conv_rate_se, 1)) %>%
+  ungroup() %>%
+  select(species,
+         spawn_year,
+         node,
+         obs_tags_at_node = tags_at_node,
+         eff_est,
+         eff_se,
+         est_tags_at_node,
+         conv_rate,
+         conv_rate_se,
+         conv_l90ci,
+         conv_u90ci)
+
+# table of conversion rates, SC3 -> SC4
+conv_tbl = conversion_df %>%
+  # add columns with tags from previous node
+  group_by(species, spawn_year) %>%
+  mutate(est_tags_prev = lag(est_tags_at_node)) %>%
+  mutate(conv_rate = round(conv_rate * 100, 1),
+         conv_rate_se = round(conv_rate_se * 100, 1)) %>%
+  # focus only on conversion to SC4
+  filter(node == "SC4") %>%
+  select(Species = species,
+         `Spawn Year` = spawn_year,
+         `Est Tags SC3` = est_tags_prev,
+         `Est Tags SC4` = est_tags_at_node,
+         `Conversion (%)` = conv_rate,
+         `Conversion SE` = conv_rate_se) %>%
+  kable(booktabs = T,
+        align = "cccccc",
+        caption = "Estimated tags observed at SC3 and SC4 by species and spawn year including conversion rates.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+conv_tbl
+
+```
+
+Text...
+
+```{r conv-rate-p, fig.cap = "Conversion rates for Chinook salmon and steelhead from SC3 to SC4 on the South Fork Clearwater River."}
+# # summary of conversion rates, all sites
+# conversion_df %>%
+#   select(species, spawn_year, node, conv_rate, conv_l90ci, conv_u90ci) %>%
+#   mutate(spawn_year = as.factor(spawn_year)) %>%
+#   filter(node %in% c("SC2", "SC3", "SC4")) %>%
+#   ggplot(aes(x = node, y = conv_rate, fill = spawn_year)) +
+#   geom_col(position = "dodge") +
+#   geom_errorbar(aes(ymin = conv_l90ci, ymax = conv_u90ci),
+#                 position = position_dodge(width = 0.9),
+#                 width = 0.1) +
+#   theme_bw() +
+#   labs(x = "Site",
+#        y = "Conversion Rate (%)",
+#        fill = "Spawn Year") +
+#   facet_wrap(~species, nrow = 2)
+
+# summary of conversion rates SC3 -> SC4
+conversion_df %>%
+  filter(node == "SC4") %>%
+  select(species, spawn_year, node, conv_rate, conv_l90ci, conv_u90ci) %>%
+  mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
+  mutate(spawn_year = as.factor(spawn_year)) %>%
+  ggplot(aes(x = spawn_year,
+             y = conv_rate,
+             fill = species)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(aes(ymin = conv_l90ci, ymax = conv_u90ci),
+                position = position_dodge(width = 0.9),
+                width = 0.1) +
+  theme_bw() +
+  labs(x = "Spawn Year",
+       y = "Conversion Rate (%)",
+       fill = "Species",
+       title = "Conversion Rate SC3 -> SC4")
+
+```
+
+```{r more-data-prep}
+# --------------------------
+# Data Prep for Further Analysis
+
+# prep water level data from the sc4 probe
+sc4_daily_depth = iptds_env_df %>%
+  filter(reader.site.slug == "SC4",
+         parameter.slug == "water_level") %>%
+  mutate(value = as.numeric(value),
+         date = date(read_at)) %>%
+  group_by(reader.site.slug,
+           parameter.slug,
+           date) %>%
+  summarise(mean = round(mean(value), 2)) %>%
+  ungroup()
+
+# compile observation, biological, environmental data, etc.
+sf_df = comp_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         node,
+         min_det) %>%
+  # for instances where a tag has two compressed observations at a single node, keep first detection
+  group_by(species, spawn_year, tag_code, node) %>%
+  slice(which.min(min_det)) %>%
+  ungroup() %>%
+  # pivot wider for the time-being to ease joining some data
+  group_by(species, spawn_year, tag_code) %>%
+  pivot_wider(names_from = node,
+              values_from = c(min_det)) %>%
+  ungroup() %>%
+  # join capture histories
+  left_join(ch_df) %>%
+  # join some useful data from LGTrappingDB
+  left_join(sf_lgr_df %>%
+              select(-spawn_year)) %>%
+  # join useful mark and release information from DART 
+  left_join(dart_obs_df %>%
+              select(tag_id,
+                     mark_site,
+                     rel_site,
+                     t_rear_type) %>%
+              distinct(),
+            by = c("tag_code" = "tag_id")) %>%
+  # join water level at SC4 using latest date that a fish was first observed at SC1, SC2, or SC3
+  mutate(tmp_dt = date(pmax(SC1, SC2, SC3, na.rm = T))) %>%
+  left_join(sc4_daily_depth %>%
+              select(date,
+                     sc4_avg_daily_depth_m = mean),
+            by = c("tmp_dt" = "date")) %>%
+  # join daily average cfs from stites usgs gage 13338500
+  left_join(sf_gage_df2 %>%
+              filter(site_no == 13338500) %>%
+              select(Date,
+                     daily_cfs_stites = daily_mean_cfs),
+            by = c("tmp_dt" = "Date")) %>%
+  # join daily average cfs from elk city usgs gage 13337500
+  left_join(sf_gage_df2 %>%
+              filter(site_no == 13337500) %>%
+              select(Date,
+                     daily_cfs_elk = daily_mean_cfs),
+            by = c("tmp_dt" = "Date")) %>%
+  select(-tmp_dt) %>%
+  # did a fish pass SC3, SC4, and/or CRA?
+  mutate(pass_sc3 = !is.na(SC3) | !is.na(SC4) | !is.na(CRA),
+         success = !is.na(SC4) | !is.na(CRA)) %>%
+  # some organizing
+  select(species,
+         spawn_year,
+         tag_code,
+         cap_hist,
+         pass_sc3,
+         success,
+         everything())
+
+```
+
+## Release Groups
+
+Finally, we also considered release groups when evaluating conversion rates through the high-velocity reach; adults that return from juvenile releases downstream of the reach may not have the propensity to migrate through the reach. I.e., we are primarily interested in adults returning from juvenile releases upstream of the high-velocity reach (e.g., Newsome Creek) to compare passage to SC4 relative to downstream reaches. Table \@ref(tab:release groups) shows that among adult Chinook salmon and steelhead returning to the South Fork Clearwater River in spawn years 2022 and 2023, only 22 steelhead were from a juvenile release upstream near Newsome Creek (NEWSOC). Of those 22 steelhead adults, 11 (50.0%) were observed at SC3 of which 3 (27.2%) were observed migrating through the high-velocity reach and arrived at SC4 (Table \@ref(tab:success-by-rg)). 
+
+```{r release-groups}
+# query MRR sites
+mrr_df = queryMRRMeta()
+
+# summarize tags by species, spawn_year, and release location
+rg_summ = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         rel_site) %>%
+  left_join(mrr_df %>%
+              select(siteCode,
+                     type,
+                     rkm),
+            by = c("rel_site" = "siteCode")) %>%
+  mutate(rel_loc = case_when(
+    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
+    type == "IntraDamReleaseSite"     ~ "Unknown",
+    TRUE                              ~ "Downstream")) %>%
+  group_by(species, spawn_year, rel_loc) %>%
+  summarise(n_tags = n(),
+            .groups = "drop") %>%
+  pivot_wider(names_from = rel_loc,
+              values_from = n_tags,
+              values_fill = 0)
+rg_summ  
+
+# steelhead passage, upstream vs. downstream releases
+pass_by_rel_loc = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         rel_site) %>%
+  filter(species == "Steelhead") %>%
+  left_join(mrr_df %>%
+              select(siteCode,
+                     type),
+            by = c("rel_site" = "siteCode")) %>%
+  mutate(rel_loc = case_when(
+    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
+    type == "IntraDamReleaseSite"     ~ "Unknown",
+    TRUE                              ~ "Downstream")) %>%
+  # get only fish that at least arrived at SC3
+  #filter(pass_sc3 == T | success == T) %>%
+  left_join(conversion_df %>%
+              select(species,
+                     spawn_year,
+                     node,
+                     eff_est,
+                     eff_se) %>%
+              filter(species == "Steelhead",
+                     node %in% c("SC3", "SC4")) %>%
+              pivot_wider(names_from = node,
+                          values_from = c(eff_est, eff_se))) %>%
+  # calculate expansion rates
+  mutate(sc3_exp = 1 / eff_est_SC3,
+         sc4_exp = 1 / eff_est_SC4,
+         sc3_exp_se = eff_se_SC3 / (eff_est_SC3^2),
+         sc4_exp_se = eff_se_SC4 / (eff_est_SC4^2)) %>%
+  select(-eff_est_SC3, -eff_est_SC4, -eff_se_SC3, -eff_se_SC4) %>%
+  # summarise tags to sc3 and sc4
+  group_by(rel_loc) %>%
+  summarise(n_tags = n(),
+            n_tags_sc3 = sum(pass_sc3, na.rm = T),
+            n_tags_sc4 = sum(success, na.rm = T),
+            est_tags_sc3 = sum(ifelse(pass_sc3, sc3_exp, 0), na.rm = T),
+            est_tags_sc4 = sum(ifelse(success, sc4_exp, 0), na.rm = T),
+            .groups = "drop") %>%
+  # estimated conversion rates SC3 -> SC4
+  mutate(conv_rate = est_tags_sc4 / est_tags_sc3,
+         conv_rate_se = sqrt( (1 / est_tags_sc3) + (1 / est_tags_sc4) ),
+         conv_l90ci = pmax(conv_rate - 1.645 * conv_rate_se, 0),
+         conv_u90ci = pmin(conv_rate + 1.645 * conv_rate_se, 1))
+
+rl_summ = pass_by_rel_loc %>%
+  mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
+  mutate_at(vars(starts_with("conv"), starts_with("est")), ~ round(., 1)) %>%
+  select(`Release Location` = rel_loc,
+         `Obs Tags` = n_tags,
+         `Obs Tags SC3` = n_tags_sc3,
+         `Obs Tags SC4` = n_tags_sc4,
+         `Est Tags SC3` = est_tags_sc3,
+         `Est Tags SC4` = est_tags_sc4,
+         `Conversion (%)` = conv_rate)
+rl_summ
+
+```
+
+## Discharge
+
+We summarized conversion rates by water level (m) recorded at SC4 using the IPTDS environmental probe (Table \@ref(tab:SC4-water-level)). Above a water level of 0.8 m, only 1 of 23 steelhead that passed SC3 arrived at SC4; however, sample sizes at higher water levels are low and nearly all Chinook salmon that passed SC3 at similar water levels arrived at SC4. For this analysis, the water level recorded for each fish was the water level at SC4 when that fish was most recently observed at a site downstream of the high-velocity reach.
+
+```{r discharge}
+# --------------------------
+# Flow
+
+# passage by cfs at Elk City
+pass_by_cfs = sf_df %>%
+  select(species,
+         spawn_year,
+         tag_code,
+         pass_sc3,
+         success,
+         rel_site,
+         daily_cfs_elk) %>%
+  mutate(cfs_last_det = if_else(daily_cfs_elk >= 600, "abv_600", "blw_600")) %>%
+  left_join(mrr_df %>%
+              select(siteCode,
+                     type),
+            by = c("rel_site" = "siteCode")) %>%
+  mutate(rel_loc = case_when(
+    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
+    type == "IntraDamReleaseSite"     ~ "Unknown",
+    TRUE                              ~ "Downstream")) %>%
+  select(-type) %>%
+  # join conversion rates
+  left_join(conversion_df %>%
+              select(species,
+                     spawn_year,
+                     node,
+                     eff_est,
+                     eff_se) %>%
+              filter(node %in% c("SC3", "SC4")) %>%
+              pivot_wider(names_from = node,
+                          values_from = c(eff_est, eff_se))) %>%
+  # calculate expansion rates
+  mutate(sc3_exp = 1 / eff_est_SC3,
+         sc4_exp = 1 / eff_est_SC4,
+         sc3_exp_se = eff_se_SC3 / (eff_est_SC3^2),
+         sc4_exp_se = eff_se_SC4 / (eff_est_SC4^2)) %>%
+  select(-eff_est_SC3, -eff_est_SC4, -eff_se_SC3, -eff_se_SC4) %>%
+  group_by(species, rel_loc, cfs_last_det) %>%
+  #group_by(species, cfs_last_det) %>%
+  summarise(n_tags = n(),
+            n_tags_sc3 = sum(pass_sc3, na.rm = T),
+            n_tags_sc4 = sum(success, na.rm = T),
+            est_tags_sc3 = sum(ifelse(pass_sc3, sc3_exp, 0), na.rm = T),
+            est_tags_sc4 = sum(ifelse(success, sc4_exp, 0), na.rm = T),
+            .groups = "drop") %>%
+  # estimated conversion rates SC3 -> SC4
+  mutate(conv_rate = pmin(est_tags_sc4 / est_tags_sc3, 1),
+         conv_rate_se = sqrt( (1 / est_tags_sc3) + (1 / est_tags_sc4) ),
+         conv_l90ci = pmax(conv_rate - 1.645 * conv_rate_se, 0),
+         conv_u90ci = pmin(conv_rate + 1.645 * conv_rate_se, 1))
+
+cfs_summ = pass_by_cfs %>%
+  mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
+  mutate_at(vars(starts_with("conv"), starts_with("est")), ~ round(., 1)) %>%
+  select(Species = species,
+         `Release Location` = rel_loc,
+         `Est CFS (Elk City)` = cfs_last_det,
+         `Obs Tags` = n_tags,
+         `Obs Tags SC3` = n_tags_sc3,
+         `Obs Tags SC4` = n_tags_sc4,
+         `Est Tags SC3` = est_tags_sc3,
+         `Est Tags SC4` = est_tags_sc4,
+         `Conversion (%)` = conv_rate)
+cfs_summ
+
+```
+
+
+# Discussion
+
+Based on PIT-tagged adult returns in spawn years 2022 and 2023, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for steelhead. Estimated conversion rates to SC4 from SC3 were 13.9% and 15.6% for adults in spawn years 2022 and 2023, respectively; however, those rates are not considerably different than conversion rates of 29.3% and 13.4% to SC3 from SC2 (Table \@ref(tab:conv-rates)). Moreover, there were no discernable patterns to indicate that larger or older steelhead can pass the reach at higher rates than smaller fish, which would indicate that the reach is problematic for fish with weaker swimming capabilities. Very few adult steelhead were observed migrating to SC4 during water levels greater than 0.8 m at SC4 (Table \@ref(tab:SC4-water-level)) or at flows greater than ~2,000 cfs (Table \@ref(tab:cfs)), but sample sizes are low. Finally, very few adults from juvenile releases upstream of the high-velocity reach were available for the evaluation; using observation data from adult returns originating from juvenile releases downstream of the reach is problematic because we are unsure about their propensity to migrate through the reach.
+
+The number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in spring 2022 (Table \@ref(tab:newsoc)); 1-ocean adults from spring 2022 releases will return to the South Fork Clearwater River in spring 2024 and 2-ocean adults in spring 2025. Similarly, juvenile releases from 2023 are anticipated to return in spawn years 2025 and 2025. Those returning adults should provide a more thorough evaluation of passage through the high-velocity reach.
+
+```{r newsoc}
+juv_rel_df = read_excel(here("data/derived_data/PIT Tag Release Groups for High Velocity Reach.xlsx"),
+                        sheet = "Subbasin Releases 2014 to 2023",
+                        skip = 7) %>%
+  clean_names() %>%
+  mutate(rel_site = substr(release_site_name, 1, 6)) %>%
+  rename(rel_date = release_date_mmddyyyy)
+
+juv_rel_df %>%
+  filter(rel_site == "NEWSOC") %>%
+  select(rel_site,
+         release_year_yyyy,
+         rel_date,
+         mark_count) %>%
+  group_by(rel_site,
+           release_year_yyyy) %>%
+  summarize(mark_count = sum(mark_count)) %>%
+  rbind(tibble(rel_site = "NEWSOC",
+       release_year_yyyy = c(2024, 2025, 2026),
+       mark_count = 15900)) %>%
+  mutate(`SW Age 1 SY` = release_year_yyyy + 2,
+         `SW Age 2 SY` = release_year_yyyy + 3) %>%
+  rename(`Release Site` = rel_site,
+         `Release Year` = release_year_yyyy,
+         `Tag Count` = mark_count) %>%
+  kable(booktabs = T,
+        align = "ccccc",
+        caption = "Number of PIT-tagged juveniles released (or anticipated) within Newsome Creek releases by year, including years that each release group will return to spawn.") %>%
+  kable_styling(full_width = F,
+                position = "center",
+                bootstrap_options = c("striped", "condensed"))
+
+```
+
+Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of the total number of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or discharge; however, we used season-wide detection efficiencies largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows.
+
+<!-- Mike – the steelhead released in Newsome Creek are not adipose fin clipped.  They are intended to escape mark selective fisheries.  In addition, a portion of the steelhead released at the mouth of Meadow Ck, SF Clearwater are also not adipose fin clipped.  Pasted below are tables that display this information for 2024 releases.  Table 1.2a. has the release goal number for each location and Table 1.2b has the actual expected release numbers for this spring.
+
+Also – not sure if this has any impact or not but broodstock for the Clearwater Hatchery steelhead program is primarily collected by anglers fishing in the lower SF Clearwater.  Their target is to capture about 400 adults (and up to 475) that are removed and used for broodstock.  I guess they are essentially the same as ‘harvested’, however, I believe they keep adults that are adipose intact (not clipped) if they can determine it’s a hatchery fish (either eroded dorsal or CWT present).  Might be worth a check of IDFG database. -->
+
+
+# Literature Cited
+
+<!-- The following line ensures the references appear here for the MS Word or HTML output files, rather than right at the end of the document (this will not work for PDF files):  -->
+::: {#refs}
+:::
