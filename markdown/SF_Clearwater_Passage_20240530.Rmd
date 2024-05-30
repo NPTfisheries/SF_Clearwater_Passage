@@ -9,9 +9,13 @@ author:
     email: ryank@nezperce.org
     institute: npt_mccall
     correspondence: no
+- Miranda Gordon:
+    email: mirandag@nezperce.org
+    institute: npt_lapwai
+    correspondence: no
 - Peter Cleary:
     email: peterc@nezperce.org
-    institue: npt_orofino
+    institute: npt_orofino
     correspondence: no
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -29,6 +33,7 @@ output:
     - "--lua-filter=../templates/pagebreak.lua"
 institute:
 - npt_mccall: Nez Perce Tribe, Department of Fisheries Resources Management, 14054 Burr Dr., McCall, Idaho, 83638, USA
+- npt_lapwai: Nez Perce Tribe, Department of Fisheries Resources Management, 28764 Salmon Ln., Lapwai, Idaho, 83540, USA
 - npt_orofino: Nez Perce Tribe, Department of Fisheries Resources Management, 45559 Hwy 12, Orofino, Idaho, 83544, USA
 csl: "../templates/journal-of-archaeological-science.csl"
 bibliography: AckermanLibrary.bib
@@ -261,7 +266,7 @@ This preliminary evaluation is intended to evaluate adult conversion rates up-to
 
 ## Study area
 
-The section of river considered to be a potential velocity barrier is located near rkm 71 of the South Fork Clearwater River (Figures \@ref(fig:study-map) and \@ref(fig:barrier-pic)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) show each of the instream PIT tag detection sites (IPTDS) used in the evaluation to detect tagged adult steelhead and sp/sum Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River. 
+The section of river considered to be a potential velocity barrier is located near rkm 71 of the South Fork Clearwater River (Figures \@ref(fig:study-map) and \@ref(fig:barrier-dv)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) show each of the instream PIT tag detection sites (IPTDS) used in the evaluation to detect tagged adult steelhead and sp/sum Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River. 
 
 
 ```{r study-map, message = F, fig.cap = "Map of the study area including the locations of each instream PIT tag detection system and the approximate location of the potential velocity barrier shown in red."}
@@ -359,7 +364,7 @@ sf_sites_tbl
 
 ```
 
-```{r barrier-pic, out.width = "100%", fig.cap = "Computed water surface elevation (top) and velocity (bottom) with varying roughness (Manning's n) coefficients, presumably at 1,150 cfs at the barrier reach (unknown). Figure taken from Timm et al. (2017)."}
+```{r barrier-dv, out.width = "100%", fig.cap = "Computed water surface elevation (top) and velocity (bottom) with varying roughness (Manning's n) coefficients, presumably at 1,150 cfs at the barrier reach (unknown). Figure taken from Timm et al. (2017)."}
 knitr::include_graphics(here("figures/fig_10_timm_2017.png"))
 
 ```
