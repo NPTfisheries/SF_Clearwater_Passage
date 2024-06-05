@@ -917,7 +917,9 @@ Also – not sure if this has any impact or not but broodstock for the Clearwate
 :::
 
 
-# IPTDS Detection Probabilities
+# Appendices
+
+## IPTDS Detection Probabilities
 
 ```{r det-probs}
 node_est_df %>%
@@ -938,5 +940,29 @@ node_est_df %>%
     kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
+
+```
+
+## Length at Saltwater Age
+
+```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 - 2024."}
+# plot length-by-age, just of interest
+sf_df %>%
+  select(species,
+         lgr_fl_mm,
+         bio_scale_final_age) %>%
+  filter(!is.na(lgr_fl_mm), !is.na(bio_scale_final_age)) %>%
+  mutate(sw_age = gsub(".*:","", bio_scale_final_age)) %>%
+  mutate(sw_age = case_when(
+    sw_age == "A" ~ NA,
+    TRUE ~ sw_age)) %>%
+  filter(!is.na(sw_age)) %>%
+  ggplot(aes(x = sw_age,
+             y = lgr_fl_mm)) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(x = "Saltwater Age",
+       y = "FL (mm)") +
+  facet_wrap(~species)
 
 ```
