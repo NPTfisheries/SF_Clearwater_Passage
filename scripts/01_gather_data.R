@@ -5,7 +5,7 @@
 # Authors: Mike Ackerman and Ryan N. Kinzer 
 # 
 # Created: May 31, 2023
-#   Last Modified: May 23, 2024
+#   Last Modified: May 21, 2025
 
 # clear environment
 rm(list = ls())
@@ -51,22 +51,22 @@ queryObsDART_spc_yr = function(spc, yr) {
 
 # set species and years
 species = c("Chinook", "Steelhead")
-years = 2012:2024
+years = 2012:2025
 
 # SKIP UNLESS DATA NEEDS TO BE UPDATED: get all Chinook & steelhead observations from DART for adults at 
 # GRA and upstream (includes newly and previously tagged fish)
 
 sy = crossing(species, years) %>%
-  # incomplete data for SY2024 Chinook
-  filter(!(species == "Chinook" & years == 2024))
+  # incomplete data for SY2025 Chinook
+  filter(!(species == "Chinook" & years == 2025))
 
 dart_obs_list = map2(sy$species, sy$years, queryObsDART_spc_yr)
 names(dart_obs_list) = paste0(sy$species, "_", sy$years)
-save(dart_obs_list, file = here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+save(dart_obs_list, file = here("data/derived_data/dart_observations/sy12-25_dart_obs.rda"))
 # glimpse(dart_obs_list[["Steelhead_2024"]]) # view a single spc, yr result
 
 # load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
-load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+load(here("data/derived_data/dart_observations/sy12-25_dart_obs.rda"))
 dart_obs_df = data.table::rbindlist(dart_obs_list)
 
 # write out tag lists for each species and spawn year
@@ -132,25 +132,25 @@ compressSpcYr = function(spc, yr) {
 # compress and filter all observations, combine into a list
 comp_list = map2(sy$species, sy$years, compressSpcYr)
 names(comp_list) = paste0(sy$species, "_", sy$years)
-glimpse(comp_list[["Steelhead_2024"]])
+glimpse(comp_list[["Steelhead_2025"]])
 
 # save compressed and filtered cths
-save(comp_list, parent_child, file = here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+save(comp_list, parent_child, file = here("data/derived_data/cths/sy12-25_compressed_filtered_obs.rda"))
 
 #------------------------
 # LGTrapppingDB
 
 # get some biological data from LGR
-trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2024-05-21.csv")
+trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2025-05-21.csv")
 sf_lgr_df = bind_rows(comp_list) %>%
   select(species,
          spawn_year,
          tag_code) %>%
   distinct() %>%
   # there is one repeat spawner; ignore for now
-  #group_by(tag_code) %>%
-  #mutate(count = n()) %>%
-  #filter(count > 1)
+  # group_by(tag_code) %>%
+  # mutate(count = n()) %>%
+  # filter(count > 1) %>%
   left_join(trap_df,
             by = c("tag_code" = "LGDNumPIT")) %>%
   select(tag_code,
@@ -173,11 +173,11 @@ save(sf_lgr_df, file = here("data/derived_data/LGTrappingDB/sf_clearwater_lgtrap
 library(fisheR)
 
 # log into BioLogic database to retrieve API token
-source("C:/Git/SnakeR_IPTDS/keys/biologic_login.txt")
+source("C:/Git/SnakeRiverIPTDS/keys/biologic_login.txt")
 
 # set sf clearwater env probe sites and years
 env_sites = c("SC1", "SC2", "SC4")
-env_years = 2021:2024
+env_years = 2024:2025
 
 env_sites = "SC4"
 env_year = 2017
@@ -233,7 +233,7 @@ library(dataRetrieval)
 
 # set start and end dates for data retrieval (elk city gage started in August 2002)
 start_dt = "2003-01-01"
-end_dt   = "2024-12-31"
+end_dt   = "2025-05-21"
 
 # query stream gage data
 sf_elk_gage_info = readNWISsite(13337500)                  # sf clearwater river nr Elk City, ID
@@ -242,7 +242,7 @@ sf_elk_daily_cfs = readNWISdv(siteNumbers = 13337500,
                               startDate = start_dt, 
                               endDate = end_dt) %>%
   rename(daily_mean_cfs = X_00060_00003)
-# Unfortunately, data is only available for the site through 10/17/2021
+# unfortunately, data is only available for the site through 10/17/2021
 
 sf_stites_gage_info = readNWISsite(13338500)                 # sf clearwater river nr Stites, ID
 sf_stites_daily_cfs = readNWISdv(siteNumbers = 13338500,        
