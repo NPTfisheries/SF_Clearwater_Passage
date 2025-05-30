@@ -96,13 +96,13 @@ knitr::include_graphics(here("figures/sthd_spawn_location_by_rkm.png"))
 
 ```
 
-This report presents a preliminary assessment of adult steelhead passage at a suspected velocity barrier on the South Fork Clearwater River using detections of PIT-tagged fish. Key detection sites include SC3 (downstream of the barrier) and SC4 (upstream). The analysis includes adults PIT-tagged at Lower Granite Dam and those tagged at various locations, including within the South Fork Clearwater River. 
+This report presents a preliminary assessment of adult steelhead passage at a suspected velocity barrier on the South Fork Clearwater River using detections of PIT-tagged fish. Key detection sites include SC3 (downstream of the barrier) and SC4 (upstream). The analysis includes adults PIT-tagged at Lower Granite Dam and juveniles tagged at various locations, including within the South Fork Clearwater River. 
 
-We focus on whether PIT-tagged adults detected at SC3 later appear at SC4, indicating successful upstream passage — or a lack thereof — across the high-velocity reach. We also examine how factors such as juvenile release location and river discharge relate to these "conversion" rates. Although the primary focus is steelhead, adult spring/summer Chinook salmon PIT detections are included for comparison.
+We focus on whether PIT-tagged adults detected at SC3 later appear at SC4, indicating successful upstream passage — or a lack thereof — across the high-velocity reach. We also examine how factors such as juvenile release location and river discharge relate to "conversion" rates. A conversion rate indicates the proportion of adult salmon that successfully transition between key points during upstream migration and serves as a proxy for both survival and passage success. Although the primary focus is steelhead, adult spring/summer Chinook salmon PIT detections are included for comparison.
 
 To support this evaluation, the number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in 2022 (Table \@ref(tab:juv-releases)). The first 1-ocean adults from these releases returned to spawn in spring 2024, with 2-ocean adults expected in 2025. Releases from 2023 will also begin returning as 1-ocean adults in spring 2025.
 
-```{r juv-releases}
+```{r juv-releases, tab.cap = "Number of PIT-tagged juveniles released (or anticipated) within Newsome Creek releases by year, including years that each release group will return to spawn."}
 juv_rel_df = read_excel(here("data/derived_data/PIT Tag Release Groups for High Velocity Reach.xlsx"),
                         sheet = "Subbasin Releases 2014 to 2023",
                         skip = 7) %>%
@@ -129,7 +129,7 @@ juv_rel_df %>%
          `Tag Count` = mark_count) %>%
   kable(booktabs = T,
         align = "ccccc",
-        caption = "Number of PIT-tagged juveniles released (or anticipated) within Newsome Creek releases by year, including years that each release group will return to spawn.") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -189,7 +189,7 @@ sf_gage_int_df = sf_gage_df %>%
 
 ```{r prep-det-probs, include = FALSE}
 #---------------------
-# Site Detection Efficiencies
+# site detection efficiencies
 
 comp_df = bind_rows(comp_list) %>%
   filter(spawn_year %in% 2022:2025) ; rm(comp_list)
@@ -229,7 +229,7 @@ node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
 
 ```{r prep-cap-hists, include = FALSE}
 #---------------------
-# Build Capture Histories
+# build capture histories
 
 # load configuration file
 load(here("data/derived_data/config.rda"))
@@ -339,7 +339,7 @@ sf_map
 
 ```
 
-```{r sites-table}
+```{r sites-table, tab.cap = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, river kilometer (rkm) from the mouth of the SF Clearwater River, and location."}
 sf_sites_tbl = config %>%
   filter(site_code %in% sf_sites) %>%
   select(site_code,
@@ -358,7 +358,7 @@ sf_sites_tbl = config %>%
   ) %>%
   kable(booktabs = T,
         align = "clccc",
-        caption = "Instream PIT Tag Detection sites used in the evaluation including site codes, names, river kilometer (rkm) from the mouth of the SF Clearwater River, and location.") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -376,13 +376,13 @@ knitr::include_graphics(here("figures/fig_10_timm_2017.png"))
 
 ## Data
 
-Our evaluation used information from PIT-tagged adult steelhead and sp/sum Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. We queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam in returning adult steelhead and sp/sum Chinook salmon, during spawn years 2022 - 2024, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that the adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any PIT-tagged adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information and any subsequent observations. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` functions in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for sp/sum Chinook salmon after September 15 to avoid detections of any kelts (steelhead only), shed tags, etc. Additionally, biological (e.g., sex, length) data for adults tagged at Lower Granite Dam are available from the Lower Granite Dam trapping database (LGTrappingDB). Additional data used in the evaluation (e.g., discharge) are described below. All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
+Our evaluation used information from PIT-tagged adult steelhead and sp/sum Chinook salmon detected at any IPTDS in the South Fork Clearwater River during their upstream migration to spawn. We queried [DART](https://www.cbr.washington.edu/dart) to identify all PIT tags observed at Lower Granite Dam in returning adult steelhead and sp/sum Chinook salmon, during spawn years 2022 - 2025, using the `queryObsDART()` function in the R package `PITcleanr`, and filtered those observations to identify any adult later observed at any IPTDS in the South Fork Clearwater River (Table \@ref(tab:sites-table)). Note that the adult detection rates on the Lower Granite Dam adult fish ladder are essentially 100%, and thus, any PIT-tagged adult returning to the South Fork Clearwater River is expected to not be "missed". We then used the PIT-tag lists of returning adults to the South Fork Clearwater and queried their complete tag histories in [PTAGIS](https://www.ptagis.org/) which includes their mark and release information and any subsequent observations. The complete tag histories were then "compressed" and "filtered" using the `compress()` and `filterDetections()` functions in `PITcleanr`, respectively. For steelhead, we removed any detections after May 31 during the spawn year and for sp/sum Chinook salmon after September 15 to avoid detections of any kelts (steelhead only), shed tags, etc. Additionally, biological (e.g., sex, length) data for adults tagged at Lower Granite Dam are available from the Lower Granite Dam trapping database (LGTrappingDB). Additional data used in the evaluation (e.g., discharge) are described below. All data and code used in this evaluation are available at a GitHub site [here](https://github.com/NPTfisheries/SF_Clearwater_Passage).
 
 ## Conversion Rates
 
 First, we estimated annual conversion rates from SC3 to SC4 for steelhead and sp/sum Chinook salmon \@ref(tab:conv-rates)). The conversion rate provides an estimate of the percentage of PIT-tagged adults passing SC3 that arrived at SC4. For example, in spawn year 2024, we estimated that 140 PIT-tagged steelhead passed SC3, of which 13 (9.3%) were estimated to pass SC4. Table \@ref(tab:conv-rates) provides the estimated number of tags passing both SC3 and SC4 and estimated conversion rates with standard error. Here, both natural- and hatchery-origin adults, including all release locations, are lumped.
 
-```{r conv-rates}
+```{r conv-rates, tab.cap = "Estimated tags observed at SC3 and SC4 by species and spawn year including conversion rates."}
 # calculate conversion rates with standard error
 conversion_df = node_est_df %>%
   group_by(species, spawn_year) %>%
@@ -422,7 +422,7 @@ conv_tbl = conversion_df %>%
          `Conversion SE` = conv_rate_se) %>%
   kable(booktabs = T,
         align = "cccccc",
-        caption = "Estimated tags observed at SC3 and SC4 by species and spawn year including conversion rates.") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -430,7 +430,7 @@ conv_tbl
 
 ```
 
-Conversion rates from SC3 to SC4 were above 90% for sp/sum Chinook salmon; however, conversion rates for steelhead were all below 20% (Figure \@ref(fig:conv-rate-p)).
+Conversion rates from SC3 to SC4 were above 85% for sp/sum Chinook salmon; however, conversion rates for steelhead were all below 11% (Figure \@ref(fig:conv-rate-p)).
 
 ```{r conv-rate-p, fig.cap = "Conversion rates w/ 95% confidence intervals for sp/sum Chinook salmon and steelhead from SC3 to SC4 on the South Fork Clearwater River."}
 # # summary of conversion rates, all sites
@@ -470,7 +470,7 @@ conversion_df %>%
 
 ```
 
-Estimates of conversion rates can be confounded for several reasons. For example, most sp/sum Chinook salmon in the South Fork Clearwater River originate from tributaries upstream of the high-velocity reach whereas many steelhead originate from juvenile releases downstream of the reach. As such, it is expected that sp/sum Chinook salmon will have higher conversion rates due to their proclivity to migrate to their upstream natal areas. 
+Estimates of conversion rates can be confounded by a variety of biological and logistical reasons. For example, most sp/sum Chinook salmon in the South Fork Clearwater River originate from natal tributaries located upstream of the high-velocity reach. In contrast, many steelhead originate from hatchery releases downstream of this reach. Because adult Chinook salmon are naturally inclined to return to their upstream spawning tributaries, they are more likely to pass through the high-velocity section en route to their natal habitat. Conversely, steelhead may exhibit greater variability in migration routes due to downstream release points, potentially resulting in reduced apparent conversion. These differences highlight the importance of considering species-specific migration patterns, which are likely influenced by natal areas and release locations.
 
 ```{r more-data-prep}
 # --------------------------
@@ -554,7 +554,7 @@ sf_df = comp_df %>%
 
 Because overall conversion rates from SC3 to SC4 can be confounded depending on where juveniles were released relative to the barrier reach (and their resulting "impetus" to pass the barrier), we next considered conversion rates for adult steelhead and whether they were released as juveniles downstream or upstream of the barrier. For steelhead, all upstream releases are from Newsome Creek releases. Table (\@ref(tab:rel-loc-tbl)) shows the release location for all adults observed at IPTDS sites in the South Fork Clearwater; adults of unknown release location are oftentimes adults newly tagged at Lower Granite Dam.
 
-```{r rel-loc-tbl, message = F}
+```{r rel-loc-tbl, message = F, tab.cap = "Summary of release location relative to the barrier reach for adult steelhead and sp/sum Chinook salmon observed at IPTDS sites in the South Fork Clearwater River."}
 # query MRR sites
 # mrr_df = queryMRRMeta()
 # save(mrr_df, file = here("data/derived_data/mrr_metadata.rda"))
@@ -585,16 +585,16 @@ sf_df %>%
          `Spawn Year` = spawn_year) %>%
   kable(booktabs = T,
         align = "ccccc",
-        caption = "Summary of release location relative to the barrier reach for adult steelhead and sp/sum Chinook salmon observed at IPTDS sites in the South Fork Clearwater River.") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
 
 ```
 
-Due to lower sample sizes of adults observed at SC3 and SC4 within years, we lumped across spawn years and summarized conversion rates by juvenile release locations (Table \@ref(tab:rel-loc-conv); Figure \@ref(fig:rel-loc-p)). To date, 70 adults from Newsome Creek have been observed at IPTDS within the South Fork Clearwater River, of which 41 have been observed at SC3 and eight observed at SC4. Although sample sizes are low, conversion rates for Newsome Creek releases do appear somewhat higher than downstream and unknown releases; however, rates are still substantially lower than for sp/sum Chinook salmon.
+Due to limited annual sample sizes of adult observations at SC3 and SC4, we aggregated data across spawn years and summarized conversion rates by juvenile release location (Table \@ref(tab:rel-loc-conv); Figure \@ref(fig:rel-loc-p)). To date, a total of 277 adult steelhead originating from Newsome Creek have been detected at IPTDS sites within the South Fork Clearwater River, including 144 at SC3 and 16 at SC4. After incorporating the additional 972 steelhead detected in spawn year 2025 (Table \@ref(tab:rel-loc-tbl)), the estimated conversion rate for Newsome Creek releases was approximately 11%. This is comparable to rates observed for adults released at Bonnevile and Lower Granite dams, yet remains notably lower than conversion rates estimated for spring/summer Chinook salmon.
 
-```{r rel-loc-conv, message = F}
+```{r rel-loc-conv, message = F, tab.cap = "Summary of conversion rates for adult sp/sum Chinook salmon and steelhead based on whether their juvenile release location was upstream or downstream of the barrier reach (or unknown)."}
 # steelhead passage, upstream vs. downstream releases
 pass_by_rel_loc = sf_df %>%
   select(species,
@@ -661,7 +661,7 @@ pass_by_rel_loc %>%
          `Conversion SE` = conv_rate_se) %>%
   kable(booktabs = T,
         align = rep("c", ncol(.)),
-        caption = "Summary of conversion rates for adult sp/sum Chinook salmon and steelhead based on whether their juvenile release location was upstream or downstream of the barrier reach (or unknown).") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -689,7 +689,7 @@ pass_by_rel_loc %>%
 
 ## Discharge
 
-@Timm2018 indicated that at discharges exceeding approximately 1,000 cfs within the reach of interest, at least one very high velocity barrier emerges which exceeds burst swimming velocities for a 90 cm steelhead. Moreover, NPT personnel previously hypothesized that a barrier emerged within the reach when discharges exceed approximately 600 cfs at the previous Elk City gage. Although discharges are not currently measured in the barrier reach, flow within the reach is estimated to be approximately two times flow at the Elk City gage; and thus, when flows in the barrier reach are 1,000 cfs, flow at the Elk City gage would be approximately 500 cfs [@Timm2017]. Therefore, we estimated conversion rates from SC3 to SC4 when estimated flows at the Elk City gage are above or below 500 cfs (Table \@ref(tab:discharge), Figure \@ref(fig:cfs-p)).
+@Timm2018 indicated that at discharges exceeding approximately 1,000 cfs within the reach of interest, at least one prominent high velocity barrier emerges which exceeds burst swimming velocities for a 90 cm steelhead. Moreover, NPT personnel previously hypothesized that a barrier emerged within the reach when discharges exceed approximately 600 cfs at the previous Elk City gage. Although discharges are not currently measured in the barrier reach, flow within the reach is estimated to be approximately two times flow at the Elk City gage; and thus, when flows in the barrier reach are 1,000 cfs, flow at the Elk City gage would be approximately 500 cfs [@Timm2017]. Therefore, we estimated conversion rates from SC3 to SC4 when estimated flows at the Elk City gage are above or below 500 cfs (Table \@ref(tab:discharge), Figure \@ref(fig:cfs-p)).
 
 Unfortunately, the Elk City gage is no longer in operation and so we first evaluated correlation between the operational Stites Gage and the Elk City gage based on historical data (Figure \@ref(fig:flow-corr)). We used historical daily mean discharge estimates starting in 2023, the first full year the Elk City gage was in operation, through October 17, 2021, the last day of its operation. The relationship was then used to estimate daily mean cfs at the Elk City gage for recent years. 
 
@@ -719,9 +719,9 @@ flow_df %>%
 
 ```
 
-Conversion rates when estimated discharges at Elk City were above 500 cfs (~ 1,000 cfs in the barrier reach) were lower than when estimated discharge was below 500 cfs (Table \@ref(tab:discharge), Figure \@ref(fig:cfs-p)). Because we don't actually know the cfs when the adult approached the barrier reach, we used the estimated cfs at the Elk City gage when each fish was most recently detected at an IPTDS site in the South Fork Clearwater River.
+Conversion rates when estimated discharges at Elk City were above or below 500 cfs (~ 1,000 cfs in the barrier reach) were not significantly different (Table \@ref(tab:discharge), Figure \@ref(fig:cfs-p)). Because we don't actually know the cfs when the adult approached the barrier reach, we used the estimated cfs at the Elk City gage when each fish was most recently detected at an IPTDS site in the South Fork Clearwater River.
 
-```{r discharge}
+```{r discharge, tab.cap = "Summary of conversion rates for adult steelhead based on discharge estimated at the previous Elk City gage."}
 # flow to evaluate
 cfs = 500
 
@@ -792,7 +792,7 @@ pass_by_cfs %>%
          `Conversion SE` = conv_rate_se) %>%
   kable(booktabs = T,
         align = rep("c", ncol(.)),
-        caption = "Summary of conversion rates for adult steelhead based on discharge estimated at the previous Elk City gage.") %>%
+        label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -820,6 +820,32 @@ pass_by_cfs %>%
        title = "Conversion Rate SC3 -> SC4")
   
 ```
+
+```{r elk-flow, fig.cap = "Estimated daily mean flow (cfs) at the Elk City gage during spring months, 2022 - 2025."}
+sf_gage_int_df %>%
+  filter(site_no == 13337500,       # elk city gage
+         month(Date) %in% 3:5,
+         year(Date) %in% 2022:2025) %>%
+  mutate(
+    year = factor(year(Date)),
+    day_of_year = yday(Date),
+    dummy_date = as.Date(paste0("2000-", month(Date), "-", day(Date)))  # dummy year for shared x-axis
+  ) %>%
+  ggplot(aes(x = dummy_date,
+             y = daily_mean_cfs,
+             color = factor(year))) +
+  geom_line() +
+  labs(x = NULL,
+       y = "Daily Mean Discharge (cfs)",
+       color = "Year") +
+  scale_x_date(date_labels = "%b %d", date_breaks = "1 week") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
 # Logistic Regression
 
 Finally, we evaluated the probability of an adult being detected at SC4 (given it arrived at SC3) depending on species, release location, and predicted flow (cfs) at the previous Elk City gage at the time of last detection. To do so, we fit a logistic regression model using species, release location, and estimated flow as covariates and probability of arriving at SC4 as the response variable. A fish that successfully arrived at SC4 was a "success" = 1 whereas a fish only seen at SC3 was "success" = 0. Figure \@ref(fig:lm) shows observed fish that arrived at SC4 (1) versus those only seen at SC3 (0) with the estimated flow at last detection (dots) as well as predicted probabilities of arriving at SC4 depending on species, release location, and flow.
@@ -832,7 +858,8 @@ lm_df = sf_df %>%
          pass_sc3,
          success,
          rel_site,
-         daily_cfs_elk) %>%
+         daily_cfs_elk,
+         lgr_fl_mm) %>%
   # join release site information
   left_join(mrr_df %>%
               select(siteCode,
@@ -847,7 +874,7 @@ lm_df = sf_df %>%
   filter(pass_sc3 == TRUE | success == TRUE) %>%
   # recode success to 0s and 1s
   mutate(success = ifelse(success, 1, 0)) %>%
-  # focus on unknown and upstream releast locations %>%
+  # focus on unknown and upstream release locations %>%
   filter(!rel_loc == "Downstream")
 
 # fit the logistic regression model
@@ -907,7 +934,7 @@ The number of PIT-tagged juvenile steelhead within Newsome Creek releases was in
 
 Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or dishcarge; however, we used season-wide estimates largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows.
 
-<!-- Mike – the steelhead released in Newsome Creek are not adipose fin clipped.  They are intended to escape mark selective fisheries.  In addition, a portion of the steelhead released at the mouth of Meadow Ck, SF Clearwater are also not adipose fin clipped.  Pasted below are tables that display this information for 2024 releases.  Table 1.2a. has the release goal number for each location and Table 1.2b has the actual expected release numbers for this spring.
+<!-- Mike – the steelhead released in Newsome Creek are not adipose fin clipped. They are intended to escape mark selective fisheries. In addition, a portion of the steelhead released at the mouth of Meadow Ck, SF Clearwater are also not adipose fin clipped. Pasted below are tables that display this information for 2024 releases. Table 1.2a. has the release goal number for each location and Table 1.2b has the actual expected release numbers for this spring.
 
 Also – not sure if this has any impact or not but broodstock for the Clearwater Hatchery steelhead program is primarily collected by anglers fishing in the lower SF Clearwater.  Their target is to capture about 400 adults (and up to 475) that are removed and used for broodstock.  I guess they are essentially the same as ‘harvested’, however, I believe they keep adults that are adipose intact (not clipped) if they can determine it’s a hatchery fish (either eroded dorsal or CWT present).  Might be worth a check of IDFG database. -->
 
@@ -923,7 +950,7 @@ Also – not sure if this has any impact or not but broodstock for the Clearwate
 
 ## IPTDS Detection Probabilities
 
-```{r det-probs}
+```{r det-probs, tab.cap = "Estimated season-wide detection probabilities for IPTDS located on the South Fork Clearwater River by species and year."}
 node_est_df %>%
   mutate_at(vars(starts_with("eff")), ~ round(. * 100, 1)) %>%
   filter(node != "CRA") %>%
@@ -938,7 +965,7 @@ node_est_df %>%
          `Detection SE` = eff_se) %>%
   kable(booktabs = T,
         align = "cccccccc",
-        caption = "Estimated season-wide detection probabilities for IPTDS located on the South Fork Clearwater River by species and year.") %>%
+        label = NA) %>%
     kable_styling(full_width = F,
                 position = "center",
                 bootstrap_options = c("striped", "condensed"))
@@ -958,7 +985,8 @@ sf_df %>%
   mutate(sw_age = case_when(
     sw_age == "A" ~ NA,
     TRUE ~ sw_age)) %>%
-  filter(!is.na(sw_age)) %>%
+  #filter(!is.na(sw_age)) %>%
+  filter(sw_age %in% c("1", "2", "3")) %>%
   ggplot(aes(x = sw_age,
              y = lgr_fl_mm)) +
   geom_boxplot() +
