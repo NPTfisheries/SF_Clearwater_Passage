@@ -488,6 +488,12 @@ sc4_daily_depth = iptds_env_df %>%
   summarise(mean = round(mean(value), 2)) %>%
   ungroup()
 
+
+# query MRR sites
+# mrr_df = queryMRRMeta()
+# save(mrr_df, file = here("data/derived_data/mrr_metadata.rda"))
+load(here("data/derived_data/mrr_metadata.rda"))
+
 # compile observation, biological, environmental data, etc.
 sf_df = comp_df %>%
   select(species,
@@ -546,26 +552,7 @@ sf_df = comp_df %>%
          cap_hist,
          pass_sc3,
          success,
-         everything())
-
-```
-
-## Release Location
-
-Because overall conversion rates from SC3 to SC4 can be confounded depending on where juveniles were released relative to the barrier reach (and their resulting "impetus" to pass the barrier), we next considered conversion rates for adult steelhead and whether they were released as juveniles downstream or upstream of the barrier. For steelhead, all upstream releases are from Newsome Creek releases. Table (\@ref(tab:rel-loc-tbl)) shows the release location for all adults observed at IPTDS sites in the South Fork Clearwater; adults of unknown release location are oftentimes adults newly tagged at Lower Granite Dam.
-
-```{r rel-loc-tbl, message = F, tab.cap = "Summary of release location relative to the barrier reach for adult steelhead and sp/sum Chinook salmon observed at IPTDS sites in the South Fork Clearwater River."}
-# query MRR sites
-# mrr_df = queryMRRMeta()
-# save(mrr_df, file = here("data/derived_data/mrr_metadata.rda"))
-load(here("data/derived_data/mrr_metadata.rda"))
-
-# summarize tags by species, spawn_year, and release location
-sf_df %>%
-  select(species,
-         spawn_year,
-         tag_code,
-         rel_site) %>%
+         everything()) %>%
   left_join(mrr_df %>%
               select(siteCode,
                      type,
@@ -575,16 +562,30 @@ sf_df %>%
     rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
     type == "IntraDamReleaseSite"     ~ "Unknown",
     TRUE                              ~ "Downstream")) %>%
-  group_by(species, spawn_year, rel_loc) %>%
+  # filter out unknowns and hatchery no-clip
+  filter(t_rear_type != 'U') %>%
+  filter(!(t_rear_type == 'H' & rel_loc == 'Unknown'))
+```
+
+## Release Location
+
+Because overall conversion rates from SC3 to SC4 can be confounded depending on where juveniles were released relative to the barrier reach (and their resulting "impetus" to pass the barrier), we next considered conversion rates for adult steelhead and whether they were released as juveniles downstream or upstream of the barrier. For steelhead, all upstream releases are from Newsome Creek releases. Table (\@ref(tab:rel-loc-tbl)) shows the release location for all adults observed at IPTDS sites in the South Fork Clearwater; adults of unknown release location are oftentimes adults newly tagged at Lower Granite Dam.
+
+```{r rel-loc-tbl, message = F, tab.cap = "Summary of release location relative to the barrier reach for adult steelhead and sp/sum Chinook salmon observed at IPTDS sites in the South Fork Clearwater River."}
+
+# summarize tags by species, spawn_year, and release location
+sf_df %>%
+  group_by(species, spawn_year, rel_loc, t_rear_type) %>%
   summarise(n_tags = n(),
             .groups = "drop") %>%
   pivot_wider(names_from = rel_loc,
               values_from = n_tags,
               values_fill = 0) %>%
   rename(Species = species,
-         `Spawn Year` = spawn_year) %>%
+         `Spawn Year` = spawn_year,
+         `Rear Type` = t_rear_type) %>%
   kable(booktabs = T,
-        align = "ccccc",
+        align = "cccccc",
         label = NA) %>%
   kable_styling(full_width = F,
                 position = "center",
@@ -598,21 +599,12 @@ Due to limited annual sample sizes of adult observations at SC3 and SC4, we aggr
 # steelhead passage, upstream vs. downstream releases
 pass_by_rel_loc = sf_df %>%
   select(species,
+         t_rear_type,
          spawn_year,
          tag_code,
          pass_sc3,
          success,
-         rel_site) %>%
-  #filter(species == "Steelhead") %>%
-  # join release site information from mrr_df
-  left_join(mrr_df %>%
-              select(siteCode,
-                     type),
-            by = c("rel_site" = "siteCode")) %>%
-  mutate(rel_loc = case_when(
-    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
-    type == "IntraDamReleaseSite"     ~ "Unknown",
-    TRUE                              ~ "Downstream")) %>%
+         rel_loc) %>%
   # join detection efficiency estimates
   left_join(conversion_df %>%
               select(species,
@@ -732,18 +724,18 @@ pass_by_cfs = sf_df %>%
          tag_code,
          pass_sc3,
          success,
-         rel_site,
+         rel_loc,
          daily_cfs_elk) %>%
   mutate(cfs_last_det = if_else(daily_cfs_elk >= cfs, paste0("abv_", cfs), paste0("blw_", cfs))) %>%
-  left_join(mrr_df %>%
-              select(siteCode,
-                     type),
-            by = c("rel_site" = "siteCode")) %>%
-  mutate(rel_loc = case_when(
-    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
-    type == "IntraDamReleaseSite"     ~ "Unknown",
-    TRUE                              ~ "Downstream")) %>%
-  select(-type) %>%
+  # left_join(mrr_df %>%
+  #             select(siteCode,
+  #                    type),
+  #           by = c("rel_site" = "siteCode")) %>%
+  # mutate(rel_loc = case_when(
+  #   rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
+  #   type == "IntraDamReleaseSite"     ~ "Unknown",
+  #   TRUE                              ~ "Downstream")) %>%
+  # select(-type) %>%
   # join conversion rates
   left_join(conversion_df %>%
               select(species,
@@ -779,7 +771,7 @@ pass_by_cfs %>%
   mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
   mutate_at(vars(starts_with("conv"), starts_with("est")), ~ round(., 1)) %>%
   filter(species == "Steelhead") %>%
-  arrange(cfs_last_det, rel_loc) %>%
+  arrange(rel_loc, desc(cfs_last_det)) %>%
   select(Species = species,
          `Release Location` = rel_loc,
          `Est CFS (Elk City)` = cfs_last_det,
@@ -848,7 +840,9 @@ sf_gage_int_df %>%
 
 # Logistic Regression
 
-Finally, we evaluated the probability of an adult being detected at SC4 (given it arrived at SC3) depending on species, release location, and predicted flow (cfs) at the previous Elk City gage at the time of last detection. To do so, we fit a logistic regression model using species, release location, and estimated flow as covariates and probability of arriving at SC4 as the response variable. A fish that successfully arrived at SC4 was a "success" = 1 whereas a fish only seen at SC3 was "success" = 0. Figure \@ref(fig:lm) shows observed fish that arrived at SC4 (1) versus those only seen at SC3 (0) with the estimated flow at last detection (dots) as well as predicted probabilities of arriving at SC4 depending on species, release location, and flow.
+Finally, we evaluated the probability of an adult being detected at SC4 (given it arrived at SC3) depending on species, release location, and predicted flow (cfs) at the previous Elk City gage at the time of last detection. To do so, we fit a logistic regression model using species, release location, and estimated flow as covariates and probability of arriving at SC4 as the response variable. A fish that successfully arrived at SC4 was a "success" = 1 whereas a fish only seen at SC3 was "success" = 0. Three nested logistic regression models were fit and compared using likelihood ratio tests: (1) a full model including species, release location, and stream flow; (2) a reduced model with species and release location; and (3) a baseline model with species only. Figure \@ref(fig:lm) shows that the best-fitting model included only species as a covariate, with Chinook exhibiting a predicted probability of 0.81 and steelhead 0.12 for successfully passing upstream.
+
+<!-- shows observed fish that arrived at SC4 (1) versus those only seen at SC3 (0) with the estimated flow at last detection (dots) as well as predicted probabilities of arriving at SC4 depending on species, release location, and flow. -->
 
 ```{r lm, fig.cap = "Estimated probability of an adult arriving at SC4 given arrival at SC3 based on the estimated flow (cfs) at the previous Elk City gage, by species and release location."}
 # prep data for logistic model
@@ -857,19 +851,9 @@ lm_df = sf_df %>%
          spawn_year,
          pass_sc3,
          success,
-         rel_site,
+         rel_loc,
          daily_cfs_elk,
          lgr_fl_mm) %>%
-  # join release site information
-  left_join(mrr_df %>%
-              select(siteCode,
-                     type),
-            by = c("rel_site" = "siteCode")) %>%
-  mutate(rel_loc = case_when(
-    rel_site %in% c("REDP", "NEWSOC") ~ "Upstream",
-    type == "IntraDamReleaseSite"     ~ "Unknown",
-    TRUE                              ~ "Downstream")) %>%
-  select(-type) %>%
   # keep only fish that at least arrived at SC3
   filter(pass_sc3 == TRUE | success == TRUE) %>%
   # recode success to 0s and 1s
@@ -878,25 +862,62 @@ lm_df = sf_df %>%
   filter(!rel_loc == "Downstream")
 
 # fit the logistic regression model
-lm_mod = glm(success ~ species + rel_loc + daily_cfs_elk, data = lm_df, family = binomial)
+lm_mod_full = glm(success ~ species + rel_loc + daily_cfs_elk, data = lm_df, family = binomial(link = 'logit'))
+lm_mod_red = glm(success ~ species + rel_loc, data = lm_df, family = binomial(link = 'logit'))
+# LRT lm_mod_full vs lm_mod_red
+test1 <- anova(lm_mod_red, lm_mod_full, test = "Chisq")
+
+# fit only species model
+lm_mod = glm(success ~ species, data = lm_df, family = binomial(link = 'logit'))
+test2 <- anova(lm_mod, lm_mod_red, test = "Chisq")
+
+# species only model fits the data best according to LRT
+#pscl::pR2(lm_mod)
 
 # summary of the model
 lm_mod_summ = summary(lm_mod)
 
+newdata <- data.frame(species = unique(lm_df$species))
+pred <- predict(lm_mod, newdata = newdata, type = "response", se.fit = TRUE)
+newdata$fit <- pred$fit
+newdata$lwr <- pred$fit - 1.96 * pred$se.fit
+newdata$upr <- pred$fit + 1.96 * pred$se.fit
+
+# point estimates
+ggplot(newdata, aes(x = species, y = fit)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lwr, ymax = upr), width = 0.2) +
+  scale_y_continuous(limits= c(0,1)) +
+  labs(title = 'Predicted Probability of Passage',
+       y = 'Predicted Probability with 95% CI',
+       x = '') +
+  theme_bw()
+
+# model performance
+# ggplot(lm_df, aes(x = predicted_prob, y = success)) +
+#   geom_jitter(height = 0.05, width = 0.05, alpha = 0.4) +
+#   geom_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+#   labs(title = "Observed vs. Predicted Outcomes",
+#        x = "Predicted Probability",
+#        y = "Observed Outcome (0/1)") +
+#   theme_minimal()
+
+
+# these results are incorrect for the selected model
 # logistic regression plot
-lm_df %>%
-  ggplot(aes(x = daily_cfs_elk,
-             y = success,
-             color = rel_loc)) +
-  geom_point() +
-  geom_smooth(method = "glm",
-              method.args = list(family = "binomial")) +
-  scale_color_brewer(palette = "Paired") +
-  facet_wrap(~ species, ncol = 1) +
-  theme_bw() +
-  labs(x = "Elk City cfs, Last Detection",
-       y = "Probability of Converting to SC4",
-       color = "Release Location")
+# lm_df %>%
+#   ggplot(aes(x = daily_cfs_elk,
+#              y = success,
+#              color = rel_loc)) +
+#   geom_jitter(height = .02) +
+#   geom_smooth(method = "glm",
+#               method.args = list(family = "binomial")) +
+#   scale_color_brewer(palette = "Paired") +
+#   facet_wrap(~ species, ncol = 1) +
+#   theme_bw() +
+#   labs(x = "Elk City cfs, Last Detection",
+#        y = "Probability of Converting to SC4",
+#        color = "Release Location")
 
 ```
 
@@ -930,7 +951,7 @@ Figure \@ref(fig:lm) does demonstrate a predicted downward trend in the probabil
 
 Previous studies have indicated that a partial velocity barrier to adult steelhead passage may occur near rkm 71, at least at higher flows [@Timm2018], and that the majority of steelhead in the South Fork Clearwater River likely spawn below there [@Cleary2019]. Based on PIT-tagged adult returns in recent years, it is difficult to discern whether the high-velocity reach hinders or prevents upstream passage for adult steelhead; however, conversion rates for steelhead are remarkably lower than those for sp/sum Chinook salmon. Conversion rates for adult steelhead from SC3 to SC4 is below 20% in all years, including for individuals from juvenile releases from Newsome Creek.
 
-The number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in spring 2022 (Table \@ref(tab:juv-releases)); 1-ocean adults from spring 2022 releases began returning to the South Fork Clearwater River in spring 2024 and we did observe a 3-fold increase in adults returning from those releases as expected. Two-ocean adults will begin returning in spring 2025; increased sample sizes and observations in future years will increase our ability to evaluate conversion rates in future years. Regardless, we have established monitoring for if and when restoration actions take place to address potential passage issues due to high stream velocities.
+The number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in spring 2022 (Table \@ref(tab:juv-releases)); 1-ocean adults from spring 2022 releases began returning to the South Fork Clearwater River in spring 2024 and we did observe a 3-fold increase in adults returning from those releases as expected. The first two-ocean adults returned in the spring 2025. Continued returns from planned future releases will increase our sample sizes and observations and improve our ability to evaluate conversion rates in future years. Regardless, we have established monitoring for if and when restoration actions take place to address potential passage issues due to high stream velocities.
 
 Our evaluation used season-long estimates of detection efficiencies to expand observed tags into estimates of tags passing each IPTDS, which in turn was used to estimate conversion rates. We recognize that detection efficiencies of IPTDS can be influenced by factors including river depth or dishcarge; however, we used season-wide estimates largely due to lower sample sizes at more extreme flows. We will explore stratifying estimates of detection efficiency for future years if increased PIT-tag returns allows.
 
