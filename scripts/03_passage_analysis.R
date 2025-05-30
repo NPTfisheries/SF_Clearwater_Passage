@@ -3,7 +3,7 @@
 # Authors: Mike Ackerman
 # 
 # Created: July 5, 2023
-#   Modified: May 23, 2024
+#   Last Modified: May 21, 2025
 
 # clear environment
 rm(list = ls())
@@ -18,10 +18,10 @@ library(janitor)
 # Compile Relevant Data
 
 # load compressed and filtered PITcleanr observations
-load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+load(here("data/derived_data/cths/sy12-25_compressed_filtered_obs.rda"))
 
 # load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
-load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+load(here("data/derived_data/dart_observations/sy12-25_dart_obs.rda"))
 dart_obs_df = data.table::rbindlist(dart_obs_list) ; rm(dart_obs_list)
 
 # load relevant LGTrappingDB data
@@ -69,7 +69,7 @@ sf_gage_df2 = sf_gage_df %>%
 # Site Detection Efficiencies
 
 comp_df = bind_rows(comp_list) %>%
-  filter(spawn_year %in% 2022:2024) ; rm(comp_list)
+  filter(spawn_year %in% 2022:2025) ; rm(comp_list)
 
 # build site order
 sf_site_order = buildNodeOrder(parent_child)
@@ -97,7 +97,7 @@ estNodeEff_sy = function(spc, yr) {
 # Estimate node efficiencies across species and spawn years
 sy = crossing(species = comp_df$species, years = comp_df$spawn_year) %>%
   # incomplete data for SY2024 Chinook
-  filter(!(species == "Chinook" & years == 2024))
+  filter(!(species == "Chinook" & years == 2025))
 node_est_list = map2(sy$species, sy$years, estNodeEff_sy)
 names(node_est_list) = paste0(sy$species, "_", sy$years)
 node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
@@ -143,7 +143,7 @@ ch_cols = defineCapHistCols(parent_child = parent_child,
 # save capture histories
 save(ch_df,
      ch_cols,
-     file = here("output/capture_histories/sy22-24_capture_histories.rda"))
+     file = here("output/capture_histories/sy22-25_capture_histories.rda"))
 
 # --------------------------
 # Conversion Rates

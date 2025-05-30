@@ -3,7 +3,7 @@
 # Authors: Mike Ackerman
 # 
 # Created: May 20, 2024
-#   Last Modified: 
+#   Last Modified: May 21, 2025
 
 # clear environment
 rm(list = ls())
@@ -19,13 +19,13 @@ library(data.table)
 # Compile Relevant Data
 
 # load dart_obs_list and convert to a data frame (rbindlist avoids issues with differing data types)
-load(here("data/derived_data/dart_observations/sy12-24_dart_obs.rda"))
+load(here("data/derived_data/dart_observations/sy12-25_dart_obs.rda"))
 dart_obs_df = data.table::rbindlist(dart_obs_list) %>%
   # only need steelhead for this analysis
   filter(species == "Steelhead")
 
 # load compressed and filtered PITcleanr observations
-load(here("data/derived_data/cths/sy12-24_compressed_filtered_obs.rda"))
+load(here("data/derived_data/cths/sy12-25_compressed_filtered_obs.rda"))
 comp_df = bind_rows(comp_list) %>%
   filter(species == "Steelhead")
 
@@ -82,8 +82,8 @@ tags_per_day = sf_obs %>%
             .groups = "drop")
 
 # create sequence of dates of interest
-run_dates = seq.Date(from = as.Date("2024-01-01"),
-                     to = as.Date("2024-05-31"),
+run_dates = seq.Date(from = as.Date("2025-01-01"),
+                     to = as.Date("2025-05-31"),
                      by = "day") %>%
   # convert to %m-%d format
   format("%m-%d")
