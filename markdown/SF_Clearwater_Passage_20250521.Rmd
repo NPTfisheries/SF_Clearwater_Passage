@@ -985,7 +985,8 @@ sf_df %>%
   mutate(sw_age = case_when(
     sw_age == "A" ~ NA,
     TRUE ~ sw_age)) %>%
-  filter(!is.na(sw_age)) %>%
+  #filter(!is.na(sw_age)) %>%
+  filter(sw_age %in% c("1", "2", "3")) %>%
   ggplot(aes(x = sw_age,
              y = lgr_fl_mm)) +
   geom_boxplot() +
