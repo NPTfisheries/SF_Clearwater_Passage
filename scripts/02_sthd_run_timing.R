@@ -68,7 +68,7 @@ sf_obs %>%
 
 # number per node by year
 sf_obs %>%
-  tabyl(spawn_year, node)
+  tabyl(spawn_year, rear, node)
 
 # summarize tags per day by spawn_year, node, and rear
 tags_per_day = sf_obs %>%
@@ -191,3 +191,54 @@ ggsave(paste0(here("output/run_timing/sf_clearwater_sthd_run_time.pdf")),
        units = "in")
 
 ### END SCRIPT
+
+# RK added
+  site_df = run_df2 %>%
+    mutate(date = as.Date(date, format = "%m-%d")) %>%
+    # remove combos with small sample sizes
+    group_by(spawn_year, node, rear) %>%
+    filter(any(max_tags >= 20)) %>%
+    ungroup() %>%
+    # recode rears
+    mutate(rear = recode(rear,
+                         "H" = "Hatchery",
+                         "W" = "Natural"))
+  
+  n_yrs = length(unique(site_df$spawn_year))
+  
+  site_p = site_df %>%
+    filter(node %in% c('SC1')) %>%
+    ggplot(aes(x = date,
+               y = p_tags,
+               group = spawn_year)) +
+    geom_line(aes(color = spawn_year,
+                  #linetype = spawn_year,
+                  linewidth = spawn_year,
+                  alpha = spawn_year)) + # == "Total")) +
+    scale_color_manual(values = c(rep("gray50", n_yrs - 1), "black")) +
+    #scale_linetype_manual(values = c(rep("dashed", n_yrs - 1), "solid")) +
+    scale_linewidth_manual(values = c(rep(.75, n_yrs - 1), 1)) +
+    scale_alpha_manual(values = c(rep(0.5, n_yrs - 1), 1)) +
+    scale_x_date(date_breaks = "7 days", date_labels = "%b %d") +
+    facet_grid(rear ~ node) +
+    labs(
+         #title = paste0("Cumulative Proportion of PIT Tags Passing ", s),
+         x = NULL,
+         y = "Proportion of PIT Tags"
+         ) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 0.5, vjust = 0.5)
+          )
+
+  site_p
+  
+  unique(site_df$spawn_year)
+  
+  ggsave(paste0(here("output/run_timing/sf_clearwater_run_timing_single.png")),
+         site_p,
+         width = 7,
+         height = 7,
+         units = "in")
+  
