@@ -867,7 +867,7 @@ lm_df = sf_df %>%
   filter(pass_sc3 == TRUE | success == TRUE) %>%
   # recode success to 0s and 1s
   mutate(success = ifelse(success, 1, 0)) %>%
-  # focus on unknown and upstream release locations %>%
+  # focus on unknown and upstream release locations
   filter(!rel_loc == "Downstream")
 
 # fit the logistic regression model
