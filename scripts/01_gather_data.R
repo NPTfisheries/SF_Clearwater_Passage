@@ -10,15 +10,47 @@
 # clear environment
 rm(list = ls())
 
+# install GitHub packages, if needed
+# remotes::install_github("DOI-USGS/dataRetrieval",
+#                         build_vignettes = TRUE,
+#                         build_opts = c("--no-resave-data",
+#                                        "--no-manual"))
+# remotes::install_github("ryankinzer/fisheR", ref = "master")
+
 # load necessary packages
 library(PITcleanr)
 library(tidyverse)
 library(magrittr)
 library(lubridate)
 library(data.table)
+library(here)
+library(dataRetrieval)
+library(fisheR)
+
+#---------
+# metadata
+update_dttm  = now(tzone = "America/Boise")
+current_year = year(update_dttm)
+
+save(update_dttm,
+     file = here("data/derived_data/update_dttm.rda"))
+
+#----------------
+# set directories
+dart_obs_dir = here("data/derived_data/dart_obs/by_sy")
+comp_obs_dir = here("data/derived_data/comp_obs/by_sy")
+enviro_dir   = here("data/derived_data/enviro")
+lgr_out_dir  = here("data/derived_data/LGTrappingDB")
+
+walk(
+  c(dart_obs_dir, comp_obs_dir, enviro_dir, lgr_out_dir),
+  dir.create,
+  recursive    = TRUE,
+  showWarnings = FALSE
+)
 
 #-------------------------------------------------
-# retrieve site config info from PTAGIS, if needed
+# site configuration
 
 #config = buildConfig(node_assign = "site")
 #save(config, file = "data/derived_data/config.rda")
@@ -45,19 +77,13 @@ sf_clwr_parent_child = tribble(
 
 #---------------------
 # gather PIT-tag data
-
-# output directories
-dart_obs_dir = "data/derived_data/dart_obs/by_sy"
-comp_obs_dir = "data/derived_data/comp_obs/by_sy"
-dir.create(dart_obs_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(comp_obs_dir, recursive = TRUE, showWarnings = FALSE)
-
-# set all species and spawn years available
 species  = c("Chinook", "Steelhead")
-spawn_yr = 2012:2026
 
-sy_all = crossing(species, spawn_yr) %>%
-  filter(!(species == "Chinook" & spawn_yr == 2026)) %>%
+sy_all = crossing(
+  species = species,
+  spawn_yr = 2012:current_year
+) %>%
+  filter(!(species == "Chinook" & spawn_yr == current_year & as_date(update_dttm) < ymd(paste0(current_year, "-09-15")))) %>%
   mutate(
     spc_code = case_when(
       species == "Chinook"   ~ "chnk",
@@ -69,11 +95,13 @@ sy_all = crossing(species, spawn_yr) %>%
     comp_file_path = file.path(comp_obs_dir, comp_file_name)
   )
 
-# set only species and spawn years to update/retrieve
+# to refresh everything:
 #species_to_retrieve   = species
-#spawn_yrs_to_retrieve = spawn_yr
+#spawn_yrs_to_retrieve = 2012:current_year
+
+# or override, manually
 species_to_retrieve   = "Steelhead"
-spawn_yrs_to_retrieve = 2026
+spawn_yrs_to_retrieve = current_year
 
 sy_retrieve = sy_all %>%
   filter(
@@ -180,11 +208,19 @@ comp_obs_all = list.files(
   map(readRDS) %>%
   bind_rows()
 
-#------------------------
-# LGTrapppingDB
+#-------------
+# LGTrappingDB
+lgr_file = list.files(
+  path = "C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/",
+  pattern = "^LGTrappingDB_.*\\.csv$",
+  full.names = TRUE
+) %>%
+  sort(decreasing = TRUE) %>%
+  first()
 
-# get some biological data from LGR
-trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2026-05-26.csv", show_col_types = F) %>%
+message("Using LGTrappingDB file: ", basename(lgr_file))
+
+trap_df = read_csv(lgr_file, show_col_types = F) %>%
   # trim to adults with a spawn year
   filter(
     LGDLifeStage == "RF",
@@ -227,20 +263,20 @@ sf_clwr_lgr_df = comp_obs_all %>%
          bio_scale_final_age = BioScaleFinalAge,
          lgd_mark_ad = LGDMarkAD)
 
-save(sf_clwr_lgr_df, file = "data/derived_data/LGTrappingDB/sf_clearwater_lgtrappingdb.rda")
+save(
+  sf_clwr_lgr_df, 
+  file = file.path(lgr_out_dir, "sf_clearwater_lgtrappingdb.rda")
+)
 
-#------------------------
+#-------------------------------
 # IPTDS Environmental Probe Data
-
-# load necessary libraries
-library(fisheR)
 
 # log into BioLogic database to retrieve API token
 source("C:/Git/SnakeRiverIPTDS/keys/biologic_login.txt")
 
 # set sf clearwater env probe sites and years to retrieve
 env_sites = c("SC1", "SC2", "SC4")
-env_years = 2026
+env_years = current_year
 
 # loop to request data from each site
 for(s in env_sites) {
@@ -255,13 +291,13 @@ for(s in env_sites) {
     
     tryCatch({
       # pass API token to BioLogic; retrieve site environmental data
-      env_df <- get_biologic_data(site = s,
+      env_df <- get_biologic_data(site     = s,
                                   endpoint = "enviro",
                                   begin_dt = begin_dt,
-                                  end_dt = end_dt)
+                                  end_dt   = end_dt)
       # save env_df, if it exists
       if (nrow(env_df) > 0) {
-        env_df <- env_df %>%
+        env_df = env_df %>%
           select(reader.site.slug,
                  parameter.slug,
                  parameter.units,
@@ -283,43 +319,62 @@ for(s in env_sites) {
 #------------------------
 # Stream Gage Data
 
-# load necessary packages
-# library(remotes)
-# install_github("DOI-USGS/dataRetrieval",
-#                build_vignettes = TRUE,
-#                build_opts = c("--no-resave-data",
-#                               "--no-manual"))
-library(dataRetrieval)
-
 # set start and end dates for data retrieval (elk city gage started in August 2002)
-start_dt = "2003-01-01"
-end_dt   = "2026-05-27"
+gage_start_dt = "2003-01-01"
+gage_end_dt   = as.character(as_date(update_dttm) + days(1))
 
-# query stream gage data
-sf_elk_gage_info = read_waterdata_monitoring_location(monitoring_location_number = 13337500) # sf clearwater river nr Elk City, ID
-sf_elk_daily_cfs = read_waterdata_daily(monitoring_location_id = "USGS-13337500",
-                                        parameter_code = "00060",
-                                        time = c(start_dt, end_dt))
-# unfortunately, data is only available for the site through 10/17/2021
+gage_sites = tribble(
+  ~site_no,   ~monitoring_location_id,
+  "13337500", "USGS-13337500",
+  "13338500", "USGS-13338500"
+)
 
-sf_stites_gage_info = read_waterdata_monitoring_location(monitoring_location_number = 13338500) # sf clearwater river nr Stites, ID
-sf_stites_daily_cfs = read_waterdata_daily(monitoring_location_id = "USGS-13338500",
-                                           parameter_code = "00060",
-                                           time = c(start_dt, end_dt))
+sf_gage_meta = gage_sites %>%
+  mutate(
+    meta = map(site_no, \(x) {
+      read_waterdata_monitoring_location(
+        monitoring_location_number = x
+      ) %>%
+        sf::st_drop_geometry() %>%
+        mutate(
+          across(where(lubridate::is.POSIXt), as.character)
+        )
+    })
+  ) %>%
+  pull(meta) %>%
+  bind_rows()
 
-# merge items togeter
-sf_gage_meta = rbind(sf_elk_gage_info, sf_stites_gage_info)
-sf_gage_df = bind_rows(sf_elk_daily_cfs, sf_stites_daily_cfs) %>%
-  select(monitoring_location_id,
-         date = time,
-         daily_mean_cfs = value,
-         approval_status,
-         qualifier) %>%
-  mutate(site_no = str_remove(monitoring_location_id, "USGS-"))
+sf_gage_df = gage_sites %>%
+  mutate(
+    daily = map(monitoring_location_id, \(x) {
+      read_waterdata_daily(
+        monitoring_location_id = x,
+        parameter_code = "00060",
+        time = c(gage_start_dt, gage_end_dt)
+      )
+    })
+  ) %>%
+  pull(daily) %>%
+  bind_rows() %>%
+  select(
+    monitoring_location_id,
+    date = time,
+    daily_mean_cfs = value,
+    approval_status,
+    qualifier
+  ) %>%
+  sf::st_drop_geometry() %>%
+  mutate(
+    site_no = str_remove(monitoring_location_id, "USGS-")
+  )
 
 # write out stream gage data for analysis
-save(sf_gage_meta,
-     sf_gage_df,
-     file = "data/derived_data/enviro/sf_clearwater_mean_daily_cfs.rda")
+save(
+  sf_gage_meta,
+  sf_gage_df,
+  file = file.path(enviro_dir, "sf_clearwater_mean_daily_cfs.rda")
+)
+
+message("Data update completed: ", update_dttm)
 
 ### END SCRIPT

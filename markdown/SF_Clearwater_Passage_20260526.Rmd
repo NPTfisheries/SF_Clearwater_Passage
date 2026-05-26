@@ -1,5 +1,5 @@
 ---
-title: "Assessment of a Potential Velocity Barrier for Adult Steelhead Migration on the South Fork Clearwater River - Preliminary"
+title: "Assessment of a Potential Velocity Barrier for Adult Steelhead Migration, South Fork Clearwater River - Preliminary"
 author:
 - Michael W. Ackerman:
     email: mikea@nezperce.org
@@ -17,7 +17,7 @@ author:
     email: peterc@nezperce.org
     institute: npt_orofino
     correspondence: no
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+date: "Report Version: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   bookdown::html_document2:
     theme: cerulean
@@ -86,64 +86,75 @@ library(readxl)
 
 ```
 
+```{r update-dttm}
+load("../data/derived_data/update_dttm.rda")
+```
+
+Data last updated: `r format(update_dttm, "%B %d, %Y at %I:%M %p %Z")`
 
 # Background
 
-A section of the South Fork Clearwater River near milepost (MP) 28 has been identified as a potential migration barrier for adult steelhead, particularly during periods of elevated flows. Elevated water velocities in this reach are hypothesized to impede or occasionally prevent upstream migration, limiting access to spawning habitat in the upper mainstem and its tributaries. Previous research suggests that when river discharge exceeds approximately 1,000 cfs in the reach, at least one hydraulic feature produces velocities that surpass the burst swimming capacity of a 90 cm steelhead [@Timm2017; @Timm2018]. Earlier observations by Nez Perce Tribe (NPT) staff indicated that a velocity barrier may begin to form at flows above 600 cfs, based on readings from the former Elk City gage. Additionally, radio telemetry data collected from 2013 - 2017 [@Cleary2019] showed that relatively few steelhead spawned upstream of river kilometer (rkm) 71, which corresponds to the location of the suspected high-velocity reach (Figure \@ref(fig:loc-by-rkm)).
+A section of the South Fork Clearwater River near milepost (MP) 28 has been identified as a potential migration barrier for adult steelhead, particularly during periods of elevated discharge. High stream velocities within this reach are thought to impede, and some cases prevent, upstream migration, thereby limiting access to spawning habitat in the upper mainstem and its tributaries. Previous hydraulic modeling suggested that at least one feature within the reach produces velocities exceeding the burst swimming capacity of a 90-cm steelhead when discharge surpasses approximately 1,000 cfs [@Timm2017; @Timm2018]. Earlier observations by Nez Perce Tribe (NPT) staff further suggested that barrier conditions may begin to develop at flows exceeding roughly 600 cfs, based on measurements from the former Elk City gage. Supporting these concerns, radio telemetry data collected from 2013–2017 [@Cleary2019] indicated that relatively few steelhead spawned upstream of river kilometer (rkm) 71, which corresponds to the location of the suspected high-velocity reach (Figure @ref(fig:loc-by-rkm)).
 
 ```{r loc-by-rkm, out.width = "100%", fig.cap = "Estimated spawning locations for adult steelhead in the South Fork Clearwater River from a radio telemetry study conducted in 2013 - 2017."}
 knitr::include_graphics(here("figures/sthd_spawn_location_by_rkm.png"))
 
 ```
 
-This report presents a preliminary assessment of adult steelhead passage at the suspected velocity barrier on the South Fork Clearwater River using detections of PIT-tagged fish. Key detection sites include SC3 (downstream of the barrier) and SC4 (upstream). The analysis includes adults PIT-tagged at Bonneville and Lower Granite dams and juveniles tagged at various locations, including within the South Fork Clearwater River. 
+This report presents a preliminary assessment of adult steelhead passage at the suspected velocity barrier using detections of PIT-tagged fish. Key detection sites include SC3, located downstream of the suspected barrier, and SC4, located upstream. The analysis incorporates adults PIT-tagged at Bonneville and Lower Granite dams, as well as juveniles tagged at multiple locations, including within the South Fork Clearwater River watershed.
 
-We focus on whether PIT-tagged adults detected at SC3 later appear at SC4, indicating successful upstream passage — or a lack thereof — across the high-velocity reach. We also examine how factors such as juvenile release location and river discharge relate to "conversion" rates. A conversion rate indicates the proportion of adults that successfully transition between key points during upstream migration and serves as a proxy for both survival and passage success. Although the primary focus is steelhead, adult spring/summer Chinook salmon PIT detections are included for comparison.
+The primary objective was to evaluate whether adult steelhead detected at SC3 were subsequently detected at SC4, thereby indicating successful upstream passage through the high-velocity reach. We also examined how factors such as juvenile release location (relative to the reach) and river discharge influenced “conversion” rates between sites. In this context, conversion rate refers to the proportion of adults successfully transitioning between key upstream migration points and serves as a proxy for both survival and passage success. Although the primary focus was steelhead, PIT-tag detections of adult spring/summer Chinook salmon were also evaluated for comparison.
 
-To support this evaluation, the number of PIT-tagged juvenile steelhead within Newsome Creek releases was increased starting in 2022 (Table \@ref(tab:juv-releases)). The first 1-ocean adults from these releases returned to spawn in spring 2024, with 2-ocean adults expected in 2025. Releases from 2023 will also begin returning as 1-ocean adults in spring 2025.
+To support this evaluation, the number of PIT-tagged juvenile steelhead released into Newsome Creek was increased beginning in 2022 (Table \@ref(tab:juv-releases)). The first 1-ocean adults from these releases returned to spawn in spring 2024; with two-ocean adults first returning in 2025.
 
-```{r juv-releases, tab.cap = "Number of PIT-tagged juveniles released (or anticipated) within Newsome Creek releases by year, including years that each release group will return to spawn."}
-juv_rel_df = read_csv(here("data/derived_data/Tagging Detail 20250602.csv")) %>%
-  clean_names() %>%
-  mutate(rel_site = substr(release_site_name, 1, 6)) %>%
-  rename(rel_date = release_date_mmddyyyy)
-
-# juv_rel_df = read_excel(here("data/derived_data/PIT Tag Release Groups for High Velocity Reach.xlsx"),
-#                         sheet = "Subbasin Releases 2014 to 2023",
-#                         skip = 7) %>%
-#   clean_names() %>%
-#   mutate(rel_site = substr(release_site_name, 1, 6)) %>%
-#   rename(rel_date = release_date_mmddyyyy)
+```{r juv-releases, tab.cap = "Number of PIT-tagged juveniles released within Newsome Creek releases by year, including years that each release group will return to spawn."}
+juv_rel_df = read_csv(
+  file = here("data/derived_data/tag_detail/Tagging Detail 20260526.csv"),
+  show_col_types = F
+) %>%
+  clean_names()
 
 juv_rel_df %>%
-  filter(rel_site == "NEWSOC") %>%
-  select(rel_site,
-         release_year_yyyy,
-         rel_date,
-         mark_count) %>%
-  group_by(rel_site,
-           release_year_yyyy) %>%
-  summarize(mark_count = sum(mark_count)) %>%
-  rbind(tibble(rel_site = "NEWSOC",
-               release_year_yyyy = 2026,
-               mark_count = 15900)) %>%
-  mutate(`SW Age 1 SY` = release_year_yyyy + 2,
-         `SW Age 2 SY` = release_year_yyyy + 3) %>%
-  rename(`Release Site` = rel_site,
-         `Release Year` = release_year_yyyy,
-         `Tag Count` = mark_count) %>%
-  kable(booktabs = T,
-        align = "ccccc",
-        label = NA) %>%
-  kable_styling(full_width = F,
-                position = "center",
-                bootstrap_options = c("striped", "condensed"))
+  transmute(
+    rel_site = str_sub(release_site_name, 1, 6),
+    release_year = release_year_yyyy,
+    srr_code,
+    mark_count
+  ) %>%
+  filter(
+    srr_code == "32H",
+    rel_site == "NEWSOC"
+  ) %>%
+  summarise(
+    mark_count = sum(mark_count),
+    .by = c(rel_site, release_year)
+  ) %>%
+  mutate(
+    sw_age_1_sy = release_year + 2,
+    sw_age_2_sy = release_year + 3
+  ) %>%
+  rename(
+    `Release Site` = rel_site,
+    `Release Year` = release_year,
+    `Tag Count`    = mark_count,
+    `SW Age 1 SY`  = sw_age_1_sy,
+    `SW Age 2 SY`  = sw_age_2_sy
+  ) %>%
+  kable(
+    booktabs = T,
+    align = "ccccc",
+    label = NA
+  ) %>%
+  kable_styling(
+    full_width = F,
+    position = "center",
+    bootstrap_options = c("striped", "condensed")
+  )
 
 ```
 
 ```{r load-data}
 # load compressed & filtered observations
-#load(here("data/derived_data/cths/sy12-25_compressed_filtered_obs.rda"))
 comp_obs_df = list.files(
   "../data/derived_data/comp_obs/by_sy",
   pattern = "\\.rds$",
@@ -154,8 +165,6 @@ comp_obs_df = list.files(
   as_tibble()
 
 # load raw dart observations
-# load(here("data/derived_data/dart_observations/sy12-25_dart_obs.rda"))
-# dart_obs_df = data.table::rbindlist(dart_obs_list) ; rm(dart_obs_list)
 dart_obs_df = list.files(
   "../data/derived_data/dart_obs/by_sy",
   pattern = "\\.rds$",
@@ -180,71 +189,87 @@ load(here("data/derived_data/enviro/sf_clearwater_mean_daily_cfs.rda"))
 ```
 
 ```{r prep-gage-data}
-# calculate ratios between stream gages to estimate recent elk city gage cfs
-# flow_bin = 500
-# flow_ratio = sf_gage_df %>%
-#   select(site_no,
-#          Date,
-#          daily_mean_cfs) %>%
-#   pivot_wider(names_from = site_no,
-#               values_from = daily_mean_cfs) %>%
-#   mutate(ratio = `13338500` / `13337500`,
-#          bin_13338500 = floor(`13338500` / flow_bin) * flow_bin) %>%
-#   group_by(bin_13338500) %>%
-#   summarise(avg_ratio = mean(ratio, na.rm = T)) %>%
-#   filter(!is.na(avg_ratio))
+sf_gage_fit_df = sf_gage_df %>%
+  select(site_no, date, daily_mean_cfs) %>%
+  pivot_wider(
+    names_from  = site_no,
+    values_from = daily_mean_cfs
+  ) %>%
+  filter(
+    !is.na(`13337500`) & !is.na(`13338500`)
+  )
 
-# create new gage data frame which estimates cfs at elk city gage for recent years
-sf_gage_int_df = sf_gage_df %>%
-  select(site_no,
-         Date,
-         daily_mean_cfs) %>%
-  pivot_wider(names_from = site_no,
-              values_from = daily_mean_cfs) %>%
-  mutate(`13337500` = if_else(is.na(`13337500`), 0.29 * `13338500` - 18.73, `13337500`)) %>%
-  pivot_longer(cols = c(`13337500`, `13338500`),
-               names_to = "site_no",
-               values_to = "daily_mean_cfs")
+sf_gage_lm = lm(`13337500` ~ `13338500`, data = sf_gage_fit_df)
+#summary(sf_gage_lm)
 
+# create new gage data with estimated cfs at Elk City gage when missing
+sf_gage_pred_df = sf_gage_df %>%
+  select(site_no, date, daily_mean_cfs) %>%
+  pivot_wider(
+    names_from  = site_no,
+    values_from = daily_mean_cfs
+  ) %>%
+  mutate(
+    pred_elk_city       = predict(sf_gage_lm, newdata = cur_data()),
+    cfs_source_elk_city = if_else(is.na(`13337500`), "predicted", "observed"),
+    `13337500` = coalesce(`13337500`, pred_elk_city)
+  ) %>%
+  select(-pred_elk_city) %>%
+  pivot_longer(
+    cols      = c(`13337500`, `13338500`),
+    names_to  = "site_no",
+    values_to = "daily_mean_cfs"
+  ) %>%
+  mutate(
+    source = case_when(
+      site_no == "13337500" ~ cfs_source_elk_city,
+      site_no == "13338500" ~ "observed",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  select(-cfs_source_elk_city)
+  
 ```
 
 ```{r prep-det-probs, include = FALSE}
 #---------------------
 # site detection efficiencies
-
-comp_df = bind_rows(comp_list) %>%
-  filter(spawn_year %in% 2022:2025) ; rm(comp_list)
+comp_obs_study_df = comp_obs_df %>%
+  filter(spawn_yr >= 2022)
 
 # build site order
-sf_site_order = buildNodeOrder(parent_child)
+sf_clwr_parent_child = tribble(
+  ~parent, ~child,
+  "SC1", "SC2",
+  "SC2", "SC3",
+  "SC3", "SC4",
+  "SC4", "CRA"
+)
+
+sf_site_order = buildNodeOrder(sf_clwr_parent_child)
 
 # Function to estimate node efficiencies for a given species and year
-estNodeEff_sy = function(spc, yr) {
-  # filter data down to species and year
-  obs_df = comp_df %>%
-    filter(species == spc,
-           spawn_year == yr)
+estNodeEff_sy = function(df, spc, yr) {
   
-  # estimate node efficiencies for given species and spawn year
-  est_df = estNodeEff(capHist_proc = obs_df,
-                      node_order = sf_site_order) %>%
-    mutate(species = spc,
-           spawn_year = yr) %>%
-    select(species, 
-           spawn_year,
-           everything())
+  message("Estimating node efficiencies for ", spc, ", spawn year ", yr)
   
-  print(paste0("Estimated node efficiencies for ", spc, " in spawn year ", yr))
-  return(est_df)
+  estNodeEff(
+    capHist_proc = df,
+    node_order   = sf_site_order
+  )
 }
 
-# Estimate node efficiencies across species and spawn years
-sy = crossing(species = comp_df$species, years = comp_df$spawn_year) %>%
-  # incomplete data for SY2025 Chinook
-  filter(!(species == "Chinook" & years == 2025))
-node_est_list = map2(sy$species, sy$years, estNodeEff_sy)
-names(node_est_list) = paste0(sy$species, "_", sy$years)
-node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
+# estimate node efficiencies across species and spawn years
+node_p_df = comp_obs_study_df %>%
+  group_by(species, spawn_yr) %>%
+  group_modify(
+    ~ estNodeEff_sy(
+      df  = .x,
+      spc = .y$species,
+      yr  = .y$spawn_yr
+    )
+  ) %>%
+  ungroup()
 
 ```
 
@@ -255,41 +280,45 @@ node_est_df = bind_rows(node_est_list) ; rm(node_est_list)
 # load configuration file
 load(here("data/derived_data/config.rda"))
 
-# Function to convert cths into capture histories for a given species and year
-buildCapHist_sy = function(spc, yr) {
-  # filter data down to species and year
-  obs_df = comp_df %>%
-    filter(species == spc,
-           spawn_year == yr)
+# function to convert compressed observations into capture histories, by species and year
+buildCapHist_sy = function(df, spc, yr) {
   
-  ch_df = buildCapHist(filter_ch = obs_df,
-                       parent_child = parent_child,
-                       configuration = config,
-                       keep_cols = c("tag_code")) %>%
-    mutate(species = spc,
-           spawn_year = yr)
+  message("Creating capture histories for ", spc, ", spawn year", yr)
   
-  print(paste0("Created capture histories for ", spc, " in spawn year ", yr))
-  return(ch_df)
+  buildCapHist(
+    filter_ch = df,
+    parent_child = sf_clwr_parent_child,
+    configuration = config,
+    keep_cols = c("tag_code")
+  )
 }
 
-# Create capture histories for each species and spawn year
-ch_list = map2(sy$species, sy$years, buildCapHist_sy)
-names(ch_list) = paste0(sy$species, "_", sy$years)
-ch_df = bind_rows(ch_list) ; rm(ch_list)
+# create capture histories across species and spawn years
+ch_df = comp_obs_study_df %>%
+  group_by(species, spawn_yr) %>%
+  group_modify(
+    ~ buildCapHist_sy(
+      df  = .x,
+      spc = .y$species,
+      yr  = .y$spawn_yr
+    )
+  ) %>%
+  ungroup()
 
 # define the capture history columns
-ch_cols = defineCapHistCols(parent_child = parent_child,
-                            configuration = config,
-                            use_rkm = TRUE)
+ch_cols = defineCapHistCols(
+  parent_child  = sf_clwr_parent_child,
+  configuration = config,
+  use_rkm       = TRUE
+)
 
 ```
 
-This preliminary evaluation is intended to evaluate adult conversion rates up-to-date since the SC3 and SC4 sites were installed in 2021 and to provide the baseline monitoring for responses to conversion rates if and when actions are taken to alleviate barriers in the study reach. This evaluation is preliminary and ongoing and will continue to be updated as additional years of data are collected and analyses are revised to address research and management questions.
+This preliminary evaluation was conducted to quantify adult conversion rates since the installation of the SC3 and SC4 PIT-tag sites in 2021 and to establish a baseline for future monitoring efforts. These baseline estimates will provide a framework for evaluating potential changes in passage success if actions are implemented to alleviate migration barriers within the study reach. The evaluation is ongoing and will continue to be refined as additional years of data become available and analyses evolve to address emerging management or conservation questions.
 
 ## Study area
 
-The section of river considered to be a potential velocity barrier is located near rkm 71 of the South Fork Clearwater River (Figures \@ref(fig:study-map) and \@ref(fig:barrier-dv)). Figure \@ref(fig:study-map) and Table \@ref(tab:sites-table) show each of the instream PIT tag detection sites (IPTDS) used in the evaluation to detect tagged adult steelhead and sp/sum Chinook salmon, including their rkm from the mouth of the South Fork Clearwater River. 
+The study area encompasses the section of the South Fork Clearwater River near rkm 71 identified as a potential high-velocity migration barrier for steelhead (Figures \@ref(fig:study-map) and \@ref(fig:barrier-dv)). The evaluation relied on a series of instream PIT-tag detection sites (IPTDS) in the watershed to monitor movements of tagged steelhead and sp/sum Chinook salmon. Figure @ref(fig:study-map) and Table @ref(tab:sites-table) summarize the IPTDS locations used in this analysis, including their rkm measured upstream from the mouth of the South Fork Clearwater River.
 
 
 ```{r study-map, message = F, fig.cap = "Map of the study area including the locations of each instream PIT tag detection system and the approximate location of the potential velocity barrier shown in red."}
@@ -356,6 +385,7 @@ sf_map = ggplot() +
           color = "red") +
   theme_bw() +
   theme(axis.title = element_blank())
+
 sf_map
 
 ```
@@ -405,8 +435,8 @@ First, we estimated annual conversion rates from SC3 to SC4 for steelhead and sp
 
 ```{r conv-rates, tab.cap = "Estimated tags observed at SC3 and SC4 by species and spawn year including conversion rates."}
 # calculate conversion rates with standard error
-conversion_df = node_est_df %>%
-  group_by(species, spawn_year) %>%
+conversion_df = node_p_df %>%
+  group_by(species, spawn_yr) %>%
   mutate(conv_rate = pmin(est_tags_at_node / lag(est_tags_at_node), 1),
          conv_rate_se = sqrt((conv_rate * (1 - conv_rate)) / est_tags_at_node),
          #conv_rate_se_old = sqrt((1 / est_tags_at_node) + (1 / lag(est_tags_at_node))),
@@ -415,7 +445,7 @@ conversion_df = node_est_df %>%
          conv_u95ci = pmin(conv_rate + 1.96 * conv_rate_se, 1)) %>%
   ungroup() %>%
   select(species,
-         spawn_year,
+         spawn_yr,
          node,
          obs_tags_at_node = tags_at_node,
          eff_est,
@@ -429,14 +459,14 @@ conversion_df = node_est_df %>%
 # table of conversion rates, SC3 -> SC4
 conv_tbl = conversion_df %>%
   # add columns with tags from previous node
-  group_by(species, spawn_year) %>%
+  group_by(species, spawn_yr) %>%
   mutate(est_tags_prev = lag(est_tags_at_node)) %>%
   mutate(conv_rate = round(conv_rate * 100, 1),
          conv_rate_se = round(conv_rate_se * 100, 1)) %>%
   # focus only on conversion to SC4
   filter(node == "SC4") %>%
   select(Species = species,
-         `Spawn Year` = spawn_year,
+         `Spawn Year` = spawn_yr,
          `Est Tags SC3` = est_tags_prev,
          `Est Tags SC4` = est_tags_at_node,
          `Conversion (%)` = conv_rate,
@@ -473,10 +503,10 @@ Conversion rates from SC3 to SC4 were above 85% for sp/sum Chinook salmon in all
 # summary of conversion rates SC3 -> SC4
 conversion_df %>%
   filter(node == "SC4") %>%
-  select(species, spawn_year, node, conv_rate, conv_l95ci, conv_u95ci) %>%
+  select(species, spawn_yr, node, conv_rate, conv_l95ci, conv_u95ci) %>%
   mutate_at(vars(starts_with("conv")), ~ . * 100) %>%
-  mutate(spawn_year = as.factor(spawn_year)) %>%
-  ggplot(aes(x = spawn_year,
+  mutate(spawn_yr = as.factor(spawn_yr)) %>%
+  ggplot(aes(x = spawn_yr,
              y = conv_rate,
              fill = species)) +
   geom_col(position = "dodge") +
@@ -516,34 +546,34 @@ sc4_daily_depth = iptds_env_df %>%
 load(here("data/derived_data/mrr_metadata.rda"))
 
 # compile observation, biological, environmental data, etc.
-sf_df = comp_df %>%
+sf_df = comp_obs_study_df %>%
   select(species,
-         spawn_year,
+         spawn_yr,
          tag_code,
          node,
          min_det) %>%
   # for instances where a tag has two compressed observations at a single node, keep first detection
-  group_by(species, spawn_year, tag_code, node) %>%
+  group_by(species, spawn_yr, tag_code, node) %>%
   slice(which.min(min_det)) %>%
   ungroup() %>%
   # pivot wider for the time-being to ease joining some data
-  group_by(species, spawn_year, tag_code) %>%
+  group_by(species, spawn_yr, tag_code) %>%
   pivot_wider(names_from = node,
               values_from = c(min_det)) %>%
   ungroup() %>%
   # join capture histories
   left_join(ch_df) %>%
   # join some useful data from LGTrappingDB
-  left_join(sf_lgr_df %>%
-              select(-spawn_year)) %>%
+  left_join(sf_clwr_lgr_df %>%
+              select(-spawn_yr)) %>%
   # join useful mark and release information from DART 
   left_join(dart_obs_df %>%
-              select(tag_id,
+              select(tag_code,
                      mark_site,
                      rel_site,
-                     t_rear_type) %>%
+                     mark_rear_type_name) %>%
               distinct(),
-            by = c("tag_code" = "tag_id")) %>%
+            by = "tag_code") %>%
   # join water level at SC4 using latest date that a fish was first observed at SC1, SC2, or SC3
   mutate(tmp_dt = date(pmax(SC1, SC2, SC3, na.rm = T))) %>%
   left_join(sc4_daily_depth %>%
@@ -551,24 +581,24 @@ sf_df = comp_df %>%
                      sc4_avg_daily_depth_m = mean),
             by = c("tmp_dt" = "date")) %>%
   # join daily average cfs from stites usgs gage 13338500
-  left_join(sf_gage_int_df %>%
+  left_join(sf_gage_pred_df %>%
               filter(site_no == 13338500) %>%
-              select(Date,
+              select(date,
                      daily_cfs_stites = daily_mean_cfs),
-            by = c("tmp_dt" = "Date")) %>%
+            by = c("tmp_dt" = "date")) %>%
   # join daily average cfs from elk city usgs gage 13337500
-  left_join(sf_gage_int_df %>%
+  left_join(sf_gage_pred_df %>%
               filter(site_no == 13337500) %>%
-              select(Date,
+              select(date,
                      daily_cfs_elk = daily_mean_cfs),
-            by = c("tmp_dt" = "Date")) %>%
+            by = c("tmp_dt" = "date")) %>%
   select(-tmp_dt) %>%
   # did a fish pass SC3, SC4, and/or CRA?
   mutate(pass_sc3 = !is.na(SC3) | !is.na(SC4) | !is.na(CRA),
          success = !is.na(SC4) | !is.na(CRA)) %>%
   # some organizing
   select(species,
-         spawn_year,
+         spawn_yr,
          tag_code,
          cap_hist,
          pass_sc3,
@@ -584,8 +614,8 @@ sf_df = comp_df %>%
     type == "IntraDamReleaseSite"     ~ "Unknown",
     TRUE                              ~ "Downstream")) %>%
   # filter out unknowns and hatchery no-clip
-  filter(t_rear_type != 'U') %>%
-  filter(!(t_rear_type == 'H' & rel_loc == 'Unknown'))
+  filter(mark_rear_type_name != 'U') %>%
+  filter(!(mark_rear_type_name == 'H' & rel_loc == 'Unknown'))
 
 ```
 
@@ -597,15 +627,15 @@ Because overall conversion rates from SC3 to SC4 can be confounded depending on 
 
 # summarize tags by species, spawn_year, and release location
 sf_df %>%
-  group_by(species, spawn_year, rel_loc, t_rear_type) %>%
+  group_by(species, spawn_yr, rel_loc, mark_rear_type_name) %>%
   summarise(n_tags = n(),
             .groups = "drop") %>%
   pivot_wider(names_from = rel_loc,
               values_from = n_tags,
               values_fill = 0) %>%
   rename(Species = species,
-         `Spawn Year` = spawn_year,
-         `Rear Type` = t_rear_type) %>%
+         `Spawn Year` = spawn_yr,
+         `Rear Type` = mark_rear_type_name) %>%
   kable(booktabs = T,
         align = "cccccc",
         label = NA) %>%
@@ -621,8 +651,8 @@ Due to limited annual sample sizes of adult observations at SC3 and SC4, we aggr
 # steelhead passage, upstream vs. downstream releases
 pass_by_rel_loc = sf_df %>%
   select(species,
-         t_rear_type,
-         spawn_year,
+         mark_rear_type_name,
+         spawn_yr,
          tag_code,
          pass_sc3,
          success,
@@ -630,7 +660,7 @@ pass_by_rel_loc = sf_df %>%
   # join detection efficiency estimates
   left_join(conversion_df %>%
               select(species,
-                     spawn_year,
+                     spawn_yr,
                      node,
                      eff_est,
                      eff_se) %>%
@@ -708,19 +738,11 @@ pass_by_rel_loc %>%
 Unfortunately, the Elk City gage is no longer in operation and so we first evaluated correlation between the operational Stites Gage and the Elk City gage based on historical data (Figure \@ref(fig:flow-corr)). We used historical daily mean discharge estimates starting in 2023, the first full year the Elk City gage was in operation, through October 17, 2021, the last day of its operation. The relationship was then used to estimate daily mean cfs at the Elk City gage for recent years. 
 
 ```{r flow-corr, fig.cap = "Linear regression of discharge (cfs) at the previous Elk City (13337500) gage with discharge at the Stites (13338500) gage."}
-flow_df = sf_gage_df %>%
-  select(site_no, Date, daily_mean_cfs) %>%
-  pivot_wider(names_from = site_no,
-              values_from = daily_mean_cfs) %>%
-  filter(!is.na(`13337500`) & !is.na(`13338500`))
+intercept      = coef(sf_gage_lm)[1]
+slope          = coef(sf_gage_lm)[2]
+sf_lm_equation = paste0("y = ", round(slope, 2), "x + ", round(intercept, 2))
 
-# calculate the linear regression
-fit = lm(`13337500` ~ `13338500`, data = flow_df)
-intercept = coef(fit)[1]
-slope = coef(fit)[2]
-equation = paste0("y = ", round(slope, 2), "x + ", round(intercept, 2))
-
-flow_df %>%
+sf_gage_fit_df %>%
   ggplot(aes(x = `13338500`, 
              y = `13337500`)) +
   geom_point() +
@@ -728,8 +750,8 @@ flow_df %>%
   theme_classic() +
   labs(x = "Stites Gage (cfs)",
        y = "Elk City Gage (cfs)") +
-  annotate("text", x = min(flow_df$`13338500`), y = max(flow_df$`13337500`), 
-           label = equation, hjust = 0, vjust = 1, color = "black")
+  annotate("text", x = min(sf_gage_fit_df$`13338500`), y = max(sf_gage_fit_df$`13337500`), 
+           label = sf_lm_equation, hjust = 0, vjust = 1, color = "black")
 
 ```
 
@@ -742,7 +764,7 @@ cfs = 500
 # passage by cfs at Elk City
 pass_by_cfs = sf_df %>%
   select(species,
-         spawn_year,
+         spawn_yr,
          tag_code,
          pass_sc3,
          success,
@@ -761,7 +783,7 @@ pass_by_cfs = sf_df %>%
   # join conversion rates
   left_join(conversion_df %>%
               select(species,
-                     spawn_year,
+                     spawn_yr,
                      node,
                      eff_est,
                      eff_se) %>%
@@ -839,14 +861,14 @@ pass_by_cfs %>%
 ```
 
 ```{r elk-flow, fig.cap = "Estimated daily mean flow (cfs) at the Elk City gage during spring and early summer months, 2022 - 2025."}
-sf_gage_int_df %>%
+sf_gage_pred_df %>%
   filter(site_no == 13337500,       # elk city gage
-         month(Date) %in% 3:7,
-         year(Date) %in% 2022:2025) %>%
+         month(date) %in% 3:7,
+         year(date) >= 2022) %>%
   mutate(
-    year = factor(year(Date)),
-    day_of_year = yday(Date),
-    dummy_date = as.Date(paste0("2000-", month(Date), "-", day(Date)))  # dummy year for shared x-axis
+    year = factor(year(date)),
+    day_of_year = yday(date),
+    dummy_date = as.Date(paste0("2000-", month(date), "-", day(date)))  # dummy year for shared x-axis
   ) %>%
   ggplot(aes(x = dummy_date,
              y = daily_mean_cfs,
@@ -872,77 +894,157 @@ Finally, we evaluated the probability of an adult being detected at SC4 (given i
 ```{r lm, fig.cap = "Estimated probability of an adult arriving at SC4 given arrival at SC3 based on the estimated flow (cfs) at the previous Elk City gage, by species and release location."}
 # prep data for logistic model
 lm_df = sf_df %>%
-  select(species,
-         spawn_year,
-         pass_sc3,
-         success,
-         rel_loc,
-         daily_cfs_elk,
-         lgr_fl_mm) %>%
+  select(
+    species,
+    spawn_yr,
+    pass_sc3,
+    success,
+    rel_loc,
+    daily_cfs_elk,
+    lgr_fl_mm
+  ) %>%
   # keep only fish that at least arrived at SC3
   filter(pass_sc3 == TRUE | success == TRUE) %>%
-  # recode success to 0s and 1s
-  mutate(success = ifelse(success, 1, 0)) %>%
   # focus on unknown and upstream release locations
-  filter(!rel_loc == "Downstream")
+  filter(rel_loc != "Downstream") %>%
+  mutate(
+    success = as.integer(success),
+    species = factor(species),
+    rel_loc = factor(rel_loc)
+  ) 
 
-# fit the logistic regression model
-lm_mod_full = glm(success ~ species + rel_loc + daily_cfs_elk, data = lm_df, family = binomial(link = 'logit'))
-lm_mod_red = glm(success ~ species + rel_loc, data = lm_df, family = binomial(link = 'logit'))
-# LRT lm_mod_full vs lm_mod_red
-test1 <- anova(lm_mod_red, lm_mod_full, test = "Chisq")
+#-----------------
+# candidate models
+lm_mod_null = glm(
+  success ~ 1,
+  data    = lm_df,
+  family  = binomial(link = "logit")
+)
 
-# fit only species model
-lm_mod = glm(success ~ species, data = lm_df, family = binomial(link = 'logit'))
-test2 <- anova(lm_mod, lm_mod_red, test = "Chisq")
+lm_mod_spc = glm(
+  success ~ species,
+  data    = lm_df,
+  family  = binomial(link = "logit")
+)
 
-# species only model fits the data best according to LRT
-#pscl::pR2(lm_mod)
+lm_mod_spc_rel = glm(
+  success ~ species + rel_loc,
+  data    = lm_df,
+  family  = binomial(link = "logit")
+)
 
-# summary of the model
-lm_mod_summ = summary(lm_mod)
+lm_mod_spc_flow = glm(
+  success ~ species + daily_cfs_elk,
+  data    = lm_df,
+  family  = binomial(link = "logit")
+)
 
-newdata <- data.frame(species = unique(lm_df$species))
-pred <- predict(lm_mod, newdata = newdata, type = "response", se.fit = TRUE)
-newdata$fit <- pred$fit
-newdata$lwr <- pred$fit - 1.96 * pred$se.fit
-newdata$upr <- pred$fit + 1.96 * pred$se.fit
+lm_mod_spc_rel_flow = glm(
+  success ~ species + rel_loc + daily_cfs_elk,
+  data    = lm_df,
+  family  = binomial(link = "logit")
+)
 
-# point estimates
-ggplot(newdata, aes(x = species, y = fit)) +
+# lm_mod_spc_rel_flow_len = glm(
+#   success ~ species + rel_loc + daily_cfs_elk + lgr_fl_mm,
+#   data = lm_df,
+#   family = binomial(link = "logit")
+# )
+
+mod_list = list(
+  null                 = lm_mod_null,
+  species              = lm_mod_spc,
+  species_rel_loc      = lm_mod_spc_rel,
+  species_flow         = lm_mod_spc_flow,
+  species_rel_loc_flow = lm_mod_spc_rel_flow
+  #species_rel_loc_flow_length = lm_mod_spc_rel_flow_len
+)
+
+# AIC model selection
+mod_aic = tibble(
+  model = names(mod_list),
+  k = map_int(mod_list, \(x) length(coef(x))),
+  aic = map_dbl(mod_list, AIC)
+) %>%
+  mutate(
+    delta_aic = aic - min(aic),
+    weight = exp(-0.5 * delta_aic) / sum(exp(-0.5 * delta_aic))
+  ) %>%
+  arrange(aic)
+
+# selected model
+lm_mod_best = lm_mod_spc
+lm_mod_summ = summary(lm_mod_best)
+
+#---------------------
+# likelihood ratio tests for nested models
+lrt_tests = list(
+  null_vs_species = anova(
+    lm_mod_null,
+    lm_mod_spc,
+    test = "Chisq"
+  ),
+  species_vs_species_rel_loc = anova(
+    lm_mod_spc,
+    lm_mod_spc_rel,
+    test = "Chisq"
+  ),
+  species_rel_loc_vs_flow = anova(
+    lm_mod_spc_rel,
+    lm_mod_spc_rel_flow,
+    test = "Chisq"
+  )
+)
+
+lrt_tests
+
+#---------------------
+# predicted probabilities by species
+
+pred_df = tibble(
+  species = levels(lm_df$species)
+)
+
+pred = predict(
+  lm_mod_best,
+  newdata = pred_df,
+  type = "link",
+  se.fit = TRUE
+)
+
+pred_df = pred_df %>%
+  mutate(
+    fit = plogis(pred$fit),
+    lwr = plogis(pred$fit - 1.96 * pred$se.fit),
+    upr = plogis(pred$fit + 1.96 * pred$se.fit)
+  )
+
+#---------------------
+# predicted probability plot
+
+tmp = ggplot(
+  pred_df,
+  aes(
+    x = species,
+    y = fit
+  )
+) +
   geom_point(size = 3) +
-  geom_errorbar(aes(ymin = lwr, ymax = upr), width = 0.2) +
-  scale_y_continuous(limits= c(0,1)) +
-  labs(title = 'Predicted Probability of Passage',
-       y = 'Predicted Probability with 95% CI',
-       x = '') +
+  geom_errorbar(
+    aes(ymin = lwr, ymax = upr),
+    width = 0.15
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    labels = scales::percent_format()
+  ) +
+  labs(
+    x = NULL,
+    y = "Predicted probability of converting to SC4"
+  ) +
   theme_bw()
 
-# model performance
-# ggplot(lm_df, aes(x = predicted_prob, y = success)) +
-#   geom_jitter(height = 0.05, width = 0.05, alpha = 0.4) +
-#   geom_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
-#   labs(title = "Observed vs. Predicted Outcomes",
-#        x = "Predicted Probability",
-#        y = "Observed Outcome (0/1)") +
-#   theme_minimal()
-
-
-# these results are incorrect for the selected model
-# logistic regression plot
-# lm_df %>%
-#   ggplot(aes(x = daily_cfs_elk,
-#              y = success,
-#              color = rel_loc)) +
-#   geom_jitter(height = .02) +
-#   geom_smooth(method = "glm",
-#               method.args = list(family = "binomial")) +
-#   scale_color_brewer(palette = "Paired") +
-#   facet_wrap(~ species, ncol = 1) +
-#   theme_bw() +
-#   labs(x = "Elk City cfs, Last Detection",
-#        y = "Probability of Converting to SC4",
-#        color = "Release Location")
+tmp
 
 ```
 
@@ -997,12 +1099,12 @@ Also – not sure if this has any impact or not but broodstock for the Clearwate
 ## IPTDS Detection Probabilities
 
 ```{r det-probs, tab.cap = "Estimated season-wide detection probabilities for IPTDS located on the South Fork Clearwater River by species and year."}
-node_est_df %>%
+node_p_df %>%
   mutate_at(vars(starts_with("eff")), ~ round(. * 100, 1)) %>%
   filter(node != "CRA") %>%
-  arrange(species, node, spawn_year) %>%
+  arrange(species, node, spawn_yr) %>%
   select(Species = species,
-         `Spawn Year` = spawn_year,
+         `Spawn Year` = spawn_yr,
          Site = node,
          `Obs Tags` = tags_at_node,
          `Obs Tags Above` = tags_above_node,
@@ -1020,7 +1122,7 @@ node_est_df %>%
 
 ## Length at Saltwater Age
 
-```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 - 2024."}
+```{r fl-by-age, fig.cap = "Fork length by salwater age for PIT-tagged adult Chinook salmon and steelhead observed in the South Fork Clearwater River, spawn years 2022 - 2026."}
 # plot length-by-age, just of interest
 sf_df %>%
   select(species,
