@@ -5,7 +5,7 @@
 # Authors: Mike Ackerman and Ryan N. Kinzer 
 # 
 # Created: May 31, 2023
-#   Last Modified: May 12, 2026
+#   Last Modified: May 26, 2026
 
 # clear environment
 rm(list = ls())
@@ -171,11 +171,25 @@ pwalk(
   }
 )
 
+# compile comp_obs objects for below
+comp_obs_all = list.files(
+  comp_obs_dir,
+  pattern    = "_comp_obs\\.rds$",
+  full.names = TRUE
+) %>%
+  map(readRDS) %>%
+  bind_rows()
+
 #------------------------
 # LGTrapppingDB
 
 # get some biological data from LGR
-trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2026-05-05.csv") %>%
+trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2026-05-26.csv", show_col_types = F) %>%
+  # trim to adults with a spawn year
+  filter(
+    LGDLifeStage == "RF",
+    SpawnYear    != "None"
+  ) %>%
   mutate(
     species = case_when(
       str_starts(SRR, "1") ~ "Chinook",
@@ -191,7 +205,7 @@ trap_df = read_csv("C:/Git/SnakeRiverFishStatus/data/LGTrappingDB/LGTrappingDB_2
   slice(1) %>%
   ungroup()
 
-sf_clwr_lgr_df = comp_obs_df %>%
+sf_clwr_lgr_df = comp_obs_all %>%
   select(species,
          spawn_yr,
          tag_code) %>%
@@ -224,9 +238,9 @@ library(fisheR)
 # log into BioLogic database to retrieve API token
 source("C:/Git/SnakeRiverIPTDS/keys/biologic_login.txt")
 
-# set sf clearwater env probe sites and years
+# set sf clearwater env probe sites and years to retrieve
 env_sites = c("SC1", "SC2", "SC4")
-env_years = 2025:2026
+env_years = 2026
 
 # loop to request data from each site
 for(s in env_sites) {
@@ -236,8 +250,8 @@ for(s in env_sites) {
     biologic_login(email, password)
     
     # set dates
-    begin_dt <- paste0(y, "-01-01")
-    end_dt   <- paste0(y, "-12-31")
+    begin_dt = paste0(y, "-01-01")
+    end_dt   = paste0(y, "-12-31")
     
     tryCatch({
       # pass API token to BioLogic; retrieve site environmental data
@@ -279,27 +293,29 @@ library(dataRetrieval)
 
 # set start and end dates for data retrieval (elk city gage started in August 2002)
 start_dt = "2003-01-01"
-end_dt   = "2026-05-13"
+end_dt   = "2026-05-27"
 
 # query stream gage data
-sf_elk_gage_info = readNWISsite(13337500)                  # sf clearwater river nr Elk City, ID
-sf_elk_daily_cfs = readNWISdv(siteNumbers = 13337500,        
-                              parameterCd = "00060",       # mean daily cfs
-                              startDate = start_dt, 
-                              endDate = end_dt) %>%
-  rename(daily_mean_cfs = X_00060_00003)
+sf_elk_gage_info = read_waterdata_monitoring_location(monitoring_location_number = 13337500) # sf clearwater river nr Elk City, ID
+sf_elk_daily_cfs = read_waterdata_daily(monitoring_location_id = "USGS-13337500",
+                                        parameter_code = "00060",
+                                        time = c(start_dt, end_dt))
 # unfortunately, data is only available for the site through 10/17/2021
 
-sf_stites_gage_info = readNWISsite(13338500)                 # sf clearwater river nr Stites, ID
-sf_stites_daily_cfs = readNWISdv(siteNumbers = 13338500,        
-                                 parameterCd = "00060",    # mean daily cfs
-                                 startDate = start_dt, 
-                                 endDate = end_dt) %>%
-  rename(daily_mean_cfs = X_00060_00003)
+sf_stites_gage_info = read_waterdata_monitoring_location(monitoring_location_number = 13338500) # sf clearwater river nr Stites, ID
+sf_stites_daily_cfs = read_waterdata_daily(monitoring_location_id = "USGS-13338500",
+                                           parameter_code = "00060",
+                                           time = c(start_dt, end_dt))
 
 # merge items togeter
 sf_gage_meta = rbind(sf_elk_gage_info, sf_stites_gage_info)
-sf_gage_df = bind_rows(sf_elk_daily_cfs, sf_stites_daily_cfs)
+sf_gage_df = bind_rows(sf_elk_daily_cfs, sf_stites_daily_cfs) %>%
+  select(monitoring_location_id,
+         date = time,
+         daily_mean_cfs = value,
+         approval_status,
+         qualifier) %>%
+  mutate(site_no = str_remove(monitoring_location_id, "USGS-"))
 
 # write out stream gage data for analysis
 save(sf_gage_meta,
