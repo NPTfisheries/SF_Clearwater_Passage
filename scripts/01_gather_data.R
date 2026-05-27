@@ -31,9 +31,7 @@ library(fisheR)
 # metadata
 update_dttm  = now(tzone = "America/Boise")
 current_year = year(update_dttm)
-
-save(update_dttm,
-     file = here("data/derived_data/update_dttm.rda"))
+save(update_dttm, file = here("data/derived_data/update_dttm.rda"))
 
 #----------------
 # set directories
@@ -51,29 +49,11 @@ walk(
 
 #-------------------------------------------------
 # site configuration
+load("C:/Git/SnakeRiverFishStatus/data/configuration_files/site_config_LGR_20260116.rda") ; rm(crb_sites_sf, flowlines, sr_site_pops)
 
-#config = buildConfig(node_assign = "site")
-#save(config, file = "data/derived_data/config.rda")
-load("data/derived_data/config.rda")
-
-sf_clwr_sites = c(
-  "SC1",  # rkm 1; These rkms are from PTAGIS and I don't know their accuracy
-  "SC2",  # rkm 2   
-  "SC3",  # rkm 60
-  "SC4",  # rkm 81
-  "CRA"   # Crooked River IPTDS
-)
-
-sf_clwr_config = config %>%
-  filter(node %in% c("GRA", sf_clwr_sites))
-
-sf_clwr_parent_child = tribble(
-  ~parent, ~child,
-  "SC1", "SC2",
-  "SC2", "SC3",
-  "SC3", "SC4",
-  "SC4", "CRA"
-)
+# add nodes to parent-child table
+pc_nodes = parent_child %>%
+  addParentChildNodes(.,  configuration = configuration)
 
 #---------------------
 # gather PIT-tag data
@@ -114,9 +94,13 @@ compressDART_spc_yr = function(spc,
                                yr,
                                dart_file_path,
                                comp_file_path,
-                               sites = sf_clwr_sites,
-                               parent_child = sf_clwr_parent_child,
-                               config_df = config) {
+                               sites = c("SC1", "SC2", "SC3", "SC4", "CRA"),
+                               nodes = c("SC1", "SC2", "SC3", "SC4_D", "SC4_U", "CRA"),
+                               #parent_child = sf_clwr_parent_child,
+                               #config_df = config,
+                               parent_child = pc_nodes,
+                               config_df = configuration
+                               ) {
   
   max_obs_date = case_when(
     spc == "Chinook"   ~ paste0(yr, "0915"),
@@ -151,17 +135,45 @@ compressDART_spc_yr = function(spc,
   
   saveRDS(dart_obs, dart_file_path)
   
+  kelt_sites = c("GRS", "GOA", "LMA", "IHR", "MCN", "JDA", "TDA", "BON")
+  
   comp_obs = dart_out$compress_obs %>%
     group_by(tag_code) %>%
-    filter(any(node %in% sites)) %>%
+    filter(any(node %in% nodes)) %>%
     ungroup() %>%
     mutate(
       species = spc,
       spawn_yr = yr
     ) %>%
     filter(min_det >= min_obs_datetime) %>%
-    filterDetections(parent_child, max_obs_date) %>%
+    filterDetections(pc_nodes, max_obs_date) %>%
+    # deal with fish later observed as kelts so they don't get tossed out
+    { 
+      tmp = .
+      
+      if (spc == "Steelhead") {
+        tmp = tmp %>%
+          group_by(tag_code) %>%
+          mutate(
+            last_study_det = max(if_else(node %in% nodes, min_det, as_datetime(NA)), na.rm = TRUE),
+            has_kelt_obs   = any(node %in% kelt_sites & min_det > last_study_det),
+            auto_keep_obs  = case_when(
+              node %in% nodes ~ TRUE,
+              has_kelt_obs == TRUE & node %in% kelt_sites & min_det > last_study_det ~ FALSE,
+              TRUE ~ auto_keep_obs
+            )
+          ) %>%
+          ungroup() %>%
+          select(-last_study_det, -has_kelt_obs)
+      } 
+      
+      tmp
+    } %>%
     filter(auto_keep_obs == TRUE) %>%
+    # this filter removes any remaining fish determined to spawn outside of sf_clwr_sites
+    group_by(tag_code) %>%
+    filter(any(node %in% nodes)) %>%
+    ungroup() %>%
     select(
       species,
       spawn_yr,
@@ -191,8 +203,8 @@ pwalk(
     comp_file_path) {
     
     compressDART_spc_yr(
-      spc = species,
-      yr = spawn_yr,
+      spc            = species,
+      yr             = spawn_yr,
       dart_file_path = dart_file_path,
       comp_file_path = comp_file_path
     )
